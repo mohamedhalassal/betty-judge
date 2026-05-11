@@ -4,6 +4,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 def utc_now(): return datetime.now(timezone.utc)
 class User(SQLModel, table=True):
+    __tablename__ = "users"
     id: int | None = Field(default=None, primary_key=True)
     google_id: str = Field(unique=True)
     email: str

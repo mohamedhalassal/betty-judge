@@ -9,7 +9,7 @@ def verify_google_token(token: str):
         return {
             "google_id": user_info.get("sub"),
             "email": user_info.get("email"),
-            "username": user_info.get("name"),
         }
     except Exception:
         return None
+

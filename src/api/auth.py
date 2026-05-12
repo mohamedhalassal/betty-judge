@@ -28,7 +28,7 @@ def login(username: str, data: GoogleLoginRequest, session: SessionDep):
         access_token = create_access_token(existing_google_id.id)
         return {"access_token": access_token, "token_type": "bearer"}
 
-    user_db = User(username=username, google_id=userInfo["google_id"])
+    user_db = User(username=username, email=userInfo["email"], google_id=userInfo["google_id"])
     session.add(user_db)
     session.commit()
     session.refresh(user_db)

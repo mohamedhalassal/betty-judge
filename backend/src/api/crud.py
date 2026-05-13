@@ -24,14 +24,15 @@ def read_problems(session: SessionDep, #pyright: ignore,
 
 # todo: add user authentication
 # todo: add response model
-@router.post("/problems")
+@router.post("/problems", response_model=ProblemResponse, status_code=201)
 async def create_problem(problem: ProblemCreate, session: SessionDep,
 current_user: Annotated[User, Depends(get_current_user)]):
     problem_db = Problem(name=problem.name,statement=problem.statement,
     created_by=current_user.id,solution=problem.solution,checker_code=problem.checker_code);    #pyright: ignore
     session.add(problem_db)#pyright: ignore
-    session.commit()                    #pyright: ignore              
+    session.commit()                    #pyright: ignore
     session.refresh(problem_db)#pyright: ignore
+    return problem_db
 
 
 @router.get("/problems/{problem_id}",dependencies=[Depends(verify_access_token)]) #pyright: ignore

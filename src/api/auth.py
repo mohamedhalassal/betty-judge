@@ -34,8 +34,9 @@ def login(username: str, data: GoogleLoginRequest,
         select(User).where(User.google_id == userInfo["google_id"])
     ).first()
 
-    if existing_google_id:
+    if existing_google_id and existing_google_id.id:
         access_token = create_access_token(existing_google_id.id)
+        # TODO: add it in Client Cookies
         return {"access_token": access_token, "token_type": "bearer"}
 
     user_db = User(username=username, email=userInfo["email"], google_id=userInfo["google_id"])

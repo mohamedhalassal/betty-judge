@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 from src.database import engine,get_session, SessionDep
 from src.models.user import User
-from typing import Annotated
+from typing import Annotated,Callable
 
 from src.schemas.user import UserResponse
 
@@ -14,9 +14,19 @@ from src.core.security import create_access_token
 
 router = APIRouter()
 
+def get_google_token_verifier():
+    return verify_google_token
+GoogleTokenVerifierDep = Annotated[
+    Callable[[str], dict | None],
+    Depends(get_google_token_verifier),
+]
+
 @router.post("/login")
-def login(username: str, data: GoogleLoginRequest, session: SessionDep):
-    userInfo = verify_google_token(data.token)
+def login(username: str, data: GoogleLoginRequest,
+ session: SessionDep, 
+ verify_token: GoogleTokenVerifierDep,
+):
+    userInfo = verify_token(data.token)
     if not userInfo:
         raise HTTPException(status_code=401, detail="Invalid Google token")
 

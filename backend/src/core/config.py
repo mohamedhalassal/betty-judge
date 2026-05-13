@@ -1,5 +1,7 @@
 import os
 
+from pydantic import BaseModel
+
 ENV = os.getenv("ENV", "development")
 
 CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
@@ -16,3 +18,11 @@ if ENV == "development" and (DATABASE_URL is None or DATABASE_URL == ""):
 
 if DATABASE_URL is None or DATABASE_URL == "":
     raise ValueError("DATABASE_URL environment variable is not set")
+
+class EnvConfig(BaseModel):
+    is_prod: bool = ENV == "production"
+    client_id: str = CLIENT_ID
+    client_secret: str = CLIENT_SECRET
+    database_url: str = DATABASE_URL
+
+default_config = EnvConfig()

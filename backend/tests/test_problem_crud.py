@@ -103,7 +103,8 @@ def test_delete_problem():
     response = client.delete(f"/problems/{problem.id}")
 
     assert response.status_code == 200
-    assert session.exec(select(Problem).where(Problem.id == problem.id)).first() is None
+    with Session(engine) as session:
+        assert session.exec(select(Problem).where(Problem.id == problem.id)).first() is None
 
 def test_update_problem():
     app.dependency_overrides[verify_access_token] = lambda: 1

@@ -16,7 +16,7 @@ def read_problems(session: SessionDep, #pyright: ignore,
  search: str | None = None):
     statement = select(Problem).order_by(Problem.id)#pyright:ignore
     if search and search.strip():
-        statement = statement.where(Problem.title.ilike(f"%{search}%"))#pyright:ignore
+        statement = statement.where(Problem.name.ilike(f"%{search}%"))#pyright:ignore
 
     problems = session.exec(statement).all()
     return problems

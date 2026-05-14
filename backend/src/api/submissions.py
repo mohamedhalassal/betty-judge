@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter,Query
 from sqlmodel import select
-from src.models.submission import Submission
+from src.models.submission import Submission, SubmissionStatus
 from src.models.problem import Problem
 from src.schemas.submission import SubmissionCreate
 from src.models.user import User

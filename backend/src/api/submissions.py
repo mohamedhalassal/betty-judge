@@ -11,7 +11,10 @@ router = APIRouter()
 
 @router.get("/submissions",dependencies=[Depends(verify_access_token)]) #pyright: ignore
 def read_submissions(session: SessionDep, status: Annotated[SubmissionStatus | None, Query()] = None): #pyright: ignore
-    statement = select(Submission).order_by(Submission.id)#pyright:ignore
+    statement = select(Submission)
+    if status is not None:
+        statement = statement.where(Submission.status == status)
+    statement = statement.order_by(Submission.id) #pyright:ignore
     submissions = session.exec(statement).all()
     return submissions
 

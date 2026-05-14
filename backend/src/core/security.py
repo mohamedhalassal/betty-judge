@@ -12,7 +12,7 @@ from .config import EnvConfig, default_config
 
 ALGORITHM = "HS256"
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/google-login")
 
 
 def create_access_token(user_id: int, td: timedelta | None = None , config: EnvConfig = default_config):
@@ -20,7 +20,7 @@ def create_access_token(user_id: int, td: timedelta | None = None , config: EnvC
         td = timedelta(days=7)
     expire = datetime.now(timezone.utc) + td
     payload = {"sub": str(user_id), "exp": expire}
-    token = jwt.encode(payload, config.client_secret, algorithm=ALGORITHM)
+    token = jwt.encode(payload, config.jwt_secret_key, algorithm=ALGORITHM)
     return token
 
 
@@ -28,7 +28,7 @@ def verify_access_token(
     token: Annotated[str, Depends(oauth2_scheme)],
 ) -> int | None:
     try:
-        payload = jwt.decode(token, default_config.client_secret, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, default_config.jwt_secret_key, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
             return None

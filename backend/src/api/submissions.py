@@ -1,7 +1,7 @@
 from typing import Annotated
-from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
+from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter,Query
 from sqlmodel import select
-from src.models.submission import Submission
+from src.models.submission import Submission, SubmissionStatus
 from src.models.problem import Problem
 from src.schemas.submission import SubmissionCreate
 from src.models.user import User
@@ -10,8 +10,11 @@ from src.core.security import verify_access_token, get_current_user
 router = APIRouter()
 
 @router.get("/submissions",dependencies=[Depends(verify_access_token)]) #pyright: ignore
-def read_submissions(session: SessionDep):
-    statement = select(Submission).order_by(Submission.id)#pyright:ignore
+def read_submissions(session: SessionDep, status: Annotated[SubmissionStatus | None, Query()] = None): #pyright: ignore
+    statement = select(Submission)
+    if status is not None:
+        statement = statement.where(Submission.status == status)
+    statement = statement.order_by(Submission.id) #pyright:ignore
     submissions = session.exec(statement).all()
     return submissions
 

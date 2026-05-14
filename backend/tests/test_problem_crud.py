@@ -69,14 +69,14 @@ def test_get_and_create_problems():
         checker_code="Sample checker code")
         
         create_response = client.post("/problems", json=problem.model_dump())
-        assert create_response.status_code == 200
+        assert create_response.status_code == 201
 
 
         problem = ProblemCreate(name="Playing Football", statement="Sample statement",
         solution="Sample solution", #pyright: ignore
         checker_code="Sample checker code")
         create_response = client.post("/problems", json=problem.model_dump())
-        assert create_response.status_code == 200
+        assert create_response.status_code == 201
 
         response = client.get("/problems")
         assert response.status_code == 200
@@ -84,6 +84,8 @@ def test_get_and_create_problems():
         assert len(data) == 2
         assert data[0]["name"] == "Two Sum"
         assert data[1]["name"] == "Playing Football"
+        assert data[0]["created_by"] == user_id
+        assert data[1]["created_by"] == user_id
 
 
         response_search = client.get("/problems?search=football")

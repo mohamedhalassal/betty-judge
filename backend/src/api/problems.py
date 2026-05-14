@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Depends, FastAPI, HTTPException, APIRouter
+from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
 from sqlmodel import select
 from src.models.problem import Problem
 from src.schemas.problem import ProblemCreate, ProblemResponse
@@ -25,7 +25,7 @@ def read_problems(session: SessionDep, #pyright: ignore,
 # todo: add user authentication
 # todo: add response model
 @router.post("/problems", response_model=ProblemResponse, status_code=201)
-async def create_problem(problem: ProblemCreate, session: SessionDep,
+async def create_problem(problem: Annotated[ProblemCreate, Body(embed=False)], session: SessionDep,
 current_user: Annotated[User, Depends(get_current_user)]):
     problem_db = Problem(name=problem.name,statement=problem.statement,
     created_by=current_user.id,solution=problem.solution,checker_code=problem.checker_code);    #pyright: ignore
@@ -58,7 +58,7 @@ def delete_problem(problem_id: int, session: SessionDep, current_user: Annotated
 # todo : who can udpate the problem
 
 @router.patch("/problems/{problem_id}")
-def update_problem(problem_id: int, problem: ProblemCreate, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+def update_problem(problem_id: int, problem: Annotated[ProblemCreate, Body(embed=False)], session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     problem_db = session.exec(select(Problem).where(Problem.id == problem_id)).first()#pyright: ignore
     if not problem_db:
         raise HTTPException(status_code=404, detail="Problem not found")

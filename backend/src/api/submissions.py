@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
+from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter,Query
 from sqlmodel import select
 from src.models.submission import Submission
 from src.models.problem import Problem
@@ -10,7 +10,7 @@ from src.core.security import verify_access_token, get_current_user
 router = APIRouter()
 
 @router.get("/submissions",dependencies=[Depends(verify_access_token)]) #pyright: ignore
-def read_submissions(session: SessionDep):
+def read_submissions(session: SessionDep, status: Annotated[SubmissionStatus | None, Query()] = None): #pyright: ignore
     statement = select(Submission).order_by(Submission.id)#pyright:ignore
     submissions = session.exec(statement).all()
     return submissions

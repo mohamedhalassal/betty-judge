@@ -1,4 +1,4 @@
-# Betty Judge
+# Betty Back
 
 ## Quick Start
 1. Create and activate a virtual environment.

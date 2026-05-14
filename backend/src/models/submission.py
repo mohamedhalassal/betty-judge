@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from enum import Enum
-from sqlmodel import Enum, Field, Session, SQLModel, create_engine, select
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 def utc_now(): return datetime.now(timezone.utc)
 

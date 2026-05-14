@@ -69,14 +69,14 @@ def test_get_and_create_problems():
         checker_code="Sample checker code")
         
         create_response = client.post("/problems", json=problem.model_dump())
-        assert create_response.status_code == 200
+        assert create_response.status_code == 201
 
 
         problem = ProblemCreate(name="Playing Football", statement="Sample statement",
         solution="Sample solution", #pyright: ignore
         checker_code="Sample checker code")
         create_response = client.post("/problems", json=problem.model_dump())
-        assert create_response.status_code == 200
+        assert create_response.status_code == 201
 
         response = client.get("/problems")
         assert response.status_code == 200

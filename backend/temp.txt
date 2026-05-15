@@ -1,0 +1,23 @@
+given problem + submission
+
+compile submission code
+
+if compilation failed:
+    return CE
+
+get test_cases for problem
+
+for each test_case:
+    run compiled submission with test_case.input
+
+    get submission_output
+
+    run checker with:
+        test_case.input
+        test_case.expected_output
+        submission_output
+
+    if checker says wrong:
+        return WA
+
+return AC

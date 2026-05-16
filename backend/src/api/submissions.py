@@ -23,7 +23,7 @@ async def create_submission(submission: Annotated[SubmissionCreate, Body(embed=F
     if(not session.exec(select(Problem).where(Problem.id == submission.problem_id)).first()): #pyright: ignore
             raise HTTPException(status_code=404, detail="Problem not found")
     submission_db = Submission(
-        code=submission.source_code,
+        source_code=submission.source_code,
         problem_id=submission.problem_id,
         user_id=current_user.id)  #pyright: ignore
     session.add(submission_db)  #pyright: ignore

@@ -136,7 +136,7 @@ def test_create_submission():
     app.dependency_overrides[get_current_user] = lambda: user
 
     response = client.post(
-        "/submissions",
+        "/submit",
         json={
             "problem_id": problem.id,
             "source_code": "print(123)"

@@ -84,6 +84,8 @@ def test_get_and_create_problems():
         assert len(data) == 2
         assert data[0]["name"] == "Two Sum"
         assert data[1]["name"] == "Playing Football"
+        assert data[0]["created_by"] == user_id
+        assert data[1]["created_by"] == user_id
 
 
         response_search = client.get("/problems?search=football")

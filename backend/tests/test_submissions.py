@@ -27,6 +27,7 @@ client = TestClient(app)
 def setup_function():
     SQLModel.metadata.create_all(engine)
     app.dependency_overrides[get_session] = get_test_session
+    app.dependency_overrides[verify_access_token] = lambda: 1
 
 
 def teardown_function():
@@ -40,41 +41,38 @@ def create_test_user(session):
         email="test@example.com",
         google_id="google-123",
     )
-
     session.add(user)
     session.commit()
     session.refresh(user)
-
+    session.expunge(user)
     return user
 
 
-def create_test_problem(session, user):
+def create_test_problem(session, user, name="Two Sum"):
     problem = Problem(
-        name="Two Sum",
-        statement="statement",
+        name=name,
+        statement="Sample statement",
         created_by=user.id,
-        solution="solution",
-        checker_code="checker",
+        solution="Sample solution",
+        checker_code="Sample checker code",
     )
-
     session.add(problem)
     session.commit()
     session.refresh(problem)
-
+    session.expunge(problem)
     return problem
 
 
-def create_test_submission(session, user, problem, code="print(1)"):
+def create_test_submission(session, user, problem, code="print('hello')"):
     submission = Submission(
-        user_id=user.id,
-        problem_id=problem.id,
         source_code=code,
+        problem_id=problem.id,
+        user_id=user.id,
     )
-
     session.add(submission)
     session.commit()
     session.refresh(submission)
-
+    session.expunge(submission)
     return submission
 
 
@@ -132,6 +130,7 @@ def test_create_submission():
         user = create_test_user(session)
 
         problem = create_test_problem(session, user)
+    app.dependency_overrides[get_current_user] = lambda: user
 
     app.dependency_overrides[get_current_user] = lambda: user
 

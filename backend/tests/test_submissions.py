@@ -112,7 +112,7 @@ def test_create_and_get_my_submissions():
 
     app.dependency_overrides[get_current_user] = lambda: user1
 
-    response = client.get("/submissions")
+    response = client.get("/my-submissions")
 
     assert response.status_code == 200
 
@@ -149,7 +149,7 @@ def test_create_submission():
 
     assert data["problem_id"] == problem.id
 
-    assert data["code"] == "print(123)"
+    assert data["source_code"] == "print(123)"
 
     assert data["user_id"] == user.id
 
@@ -170,7 +170,7 @@ def test_get_single_submission():
 
     app.dependency_overrides[get_current_user] = lambda: user
 
-    response = client.get(f"/submissions/{submission.id}")
+    response = client.get(f"/my-submissions/{submission.id}")
 
     assert response.status_code == 200
 

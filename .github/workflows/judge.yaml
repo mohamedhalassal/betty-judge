@@ -23,7 +23,8 @@ jobs:
       - name: Build and push Docker judge image
         uses: docker/build-push-action@v6
         with:
-          context: ./docker/judge
+          context: .
+          file: ./docker/judge/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/judge:latest

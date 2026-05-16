@@ -68,7 +68,7 @@ def create_test_submission(session, user, problem, code="print(1)"):
     submission = Submission(
         user_id=user.id,
         problem_id=problem.id,
-        code=code,
+        source_code=code,
     )
 
     session.add(submission)
@@ -122,7 +122,7 @@ def test_create_and_get_my_submissions():
 
     assert data[0]["user_id"] == user1.id
 
-    assert data[0]["code"] == "print('user1')"
+    assert data[0]["source_code"] == "print('user1')"
 
 
 def test_create_submission():
@@ -139,7 +139,7 @@ def test_create_submission():
         "/submissions",
         json={
             "problem_id": problem.id,
-            "code": "print(123)"
+            "source_code": "print(123)"
         }
     )
 

@@ -3,15 +3,21 @@ from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter, Query
 from sqlmodel import select
 from src.models.submission import Submission, SubmissionStatus
 from src.models.problem import Problem
-from src.schemas.submission import SubmissionCreate
+from src.schemas.submission import SubmissionCreate, SubmissionResponse
 from src.models.user import User
 from src.database import SessionDep, create_db_and_tables
 from src.core.security import verify_access_token, get_current_user
 
 router = APIRouter()
 
+@router.get("/submissions", response_model=list[SubmissionResponse])
+def read_all_submissions(session: SessionDep):
+    submissions = session.exec(select(Submission)).all()  # pyright: ignore
+    return submissions
+
+
 @router.get(
-    "/my-submissions", dependencies=[Depends(verify_access_token)]
+    "/my-submissions", response_model=list[SubmissionResponse], dependencies=[Depends(verify_access_token)]
 )  # pyright: ignore
 def read_submissions(
     session: SessionDep,
@@ -23,7 +29,7 @@ def read_submissions(
     )  # pyright: ignore
     if verdict is not None:
         statement = statement.where(Submission.verdict == verdict)
-    statement = statement.order_by(Submission.id)  # pyright:ignore
+    statement = statement.order_by(Submission.id.desc())  # pyright:ignore
     submissions = session.exec(statement).all()
     return submissions
 
@@ -52,7 +58,7 @@ async def create_submission(
 
 
 @router.get(
-    "/my-submissions/{submission_id}", dependencies=[Depends(verify_access_token)]
+    "/my-submissions/{submission_id}",response_model=SubmissionResponse, dependencies=[Depends(verify_access_token)]
 )  # pyright: ignore
 def read_submission(
     submission_id: int,

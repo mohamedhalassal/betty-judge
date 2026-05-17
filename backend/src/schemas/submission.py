@@ -9,6 +9,6 @@ class SubmissionCreate(BaseModel):
 
 class SubmissionResponse(BaseModel):
     problem_id: int
-    status: str | None
+    verdict: str | None
     execution_time: int | None
     submitted_at: datetime

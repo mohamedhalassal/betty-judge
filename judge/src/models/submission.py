@@ -7,3 +7,5 @@ class Submission(SQLModel, table=True):
     problem_id: int
     source_code: str
     status: str | None = None
+    execution_time: float | None = None
+    execution_memory: float | None = None 

@@ -1,6 +1,7 @@
 # todo if in production don't run this function
 from dotenv import load_dotenv
 load_dotenv()
+from src.database import create_db_and_tables
 
 from fastapi import FastAPI
 from sqlmodel import SQLModel
@@ -14,5 +15,9 @@ app.include_router(auth_router)
 app.include_router(problems_router)
 app.include_router(test_cases_router)
 app.include_router(submissions_router)
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
+    
 if __name__ == "__main__":
   pass

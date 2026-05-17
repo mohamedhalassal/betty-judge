@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-from backend.src.models.submission import SubmissionStatus
+from src.models.submission import SubmissionStatus
 
 
 class SubmissionCreate(BaseModel):

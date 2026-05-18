@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from datetime import datetime
 
+from src.models.submission import SubmissionStatus
+
 
 class SubmissionCreate(BaseModel):
     problem_id: int
@@ -8,7 +10,10 @@ class SubmissionCreate(BaseModel):
 
 
 class SubmissionResponse(BaseModel):
+    id: int
+    user_id: int
+    source_code: str
     problem_id: int
-    status: str | None
+    verdict: SubmissionStatus | None
     execution_time: int | None
     submitted_at: datetime

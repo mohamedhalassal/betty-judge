@@ -19,4 +19,4 @@ class Submission(SQLModel, table=True):
     submitted_at: datetime = Field(default_factory=utc_now)
     execution_time: int | None = None
     execution_memory: int | None = None 
-    status: SubmissionStatus | None = Field(default=None)
+    verdict: SubmissionStatus | None = Field(default=None)

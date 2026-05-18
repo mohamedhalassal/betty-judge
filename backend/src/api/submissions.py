@@ -10,14 +10,29 @@ from src.core.security import verify_access_token, get_current_user
 
 router = APIRouter()
 
+
 @router.get("/submissions", response_model=list[SubmissionResponse])
-def read_all_submissions(session: SessionDep):
-    submissions = session.exec(select(Submission)).all()  # pyright: ignore
+def read_all_submissions(
+    session: SessionDep,
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=100),
+):
+
+    offset = (page - 1) * size
+
+    statement = (
+        select(Submission).order_by(Submission.id.desc()).offset(offset).limit(size)
+    )
+
+    submissions = session.exec(statement).all()
+
     return submissions
 
 
 @router.get(
-    "/my-submissions", response_model=list[SubmissionResponse], dependencies=[Depends(verify_access_token)]
+    "/my-submissions",
+    response_model=list[SubmissionResponse],
+    dependencies=[Depends(verify_access_token)],
 )  # pyright: ignore
 def read_submissions(
     session: SessionDep,
@@ -58,7 +73,9 @@ async def create_submission(
 
 
 @router.get(
-    "/my-submissions/{submission_id}",response_model=SubmissionResponse, dependencies=[Depends(verify_access_token)]
+    "/my-submissions/{submission_id}",
+    response_model=SubmissionResponse,
+    dependencies=[Depends(verify_access_token)],
 )  # pyright: ignore
 def read_submission(
     submission_id: int,

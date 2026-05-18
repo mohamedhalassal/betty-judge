@@ -267,3 +267,27 @@ def test_submissions_last_page():
     assert data[0]["source_code"] == "print(4)"
 
     assert data[-1]["source_code"] == "print(0)"
+
+def test_submissions_size_limit():
+
+    response = client.get("/submissions?size=101")
+
+    assert response.status_code == 422
+
+    data = response.json()
+
+    assert data["detail"][0]["loc"] == ["query", "size"]
+
+    assert data["detail"][0]["type"] == "less_than_equal"
+
+def test_submissions_invalid_page():
+
+    response = client.get("/submissions?page=0")
+
+    assert response.status_code == 422
+
+def test_submissions_invalid_size():
+
+    response = client.get("/submissions?size=0")
+
+    assert response.status_code == 422

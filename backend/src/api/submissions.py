@@ -37,6 +37,8 @@ def read_all_submissions(
 def read_submissions(
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_user)],
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=100),
     verdict: Annotated[SubmissionStatus | None, Query()] = None,
 ):  # pyright: ignore
     statement = select(Submission).where(
@@ -45,6 +47,8 @@ def read_submissions(
     if verdict is not None:
         statement = statement.where(Submission.verdict == verdict)
     statement = statement.order_by(Submission.id.desc())  # pyright:ignore
+    offset = (page - 1) * size
+    statement = statement.offset(offset).limit(size)
     submissions = session.exec(statement).all()
     return submissions
 

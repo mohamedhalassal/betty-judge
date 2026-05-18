@@ -10,6 +10,9 @@ class SubmissionStatus(str, Enum):
     ACCEPTED = "accepted"
     WRONG_ANSWER = "wrong_answer"
     TIME_LIMIT_EXCEEDED = "time_limit_exceeded"
+    RUNTIME_ERROR = "runtime_error"
+    COMPILE_ERROR = "compile_error"
+    MEMORY_LIMIT_EXCEEDED = "memory_limit_exceeded"
 
 class Submission(SQLModel, table=True):
     __tablename__ = "submissions"
@@ -18,6 +21,6 @@ class Submission(SQLModel, table=True):
     problem_id: int = Field(foreign_key="problems.id")
     source_code: str
     submitted_at: datetime = Field(default_factory=utc_now)
-    execution_time: float | None = None
-    execution_memory: float | None = None 
+    execution_time: int | None = None
+    execution_memory: int | None = None 
     status: SubmissionStatus | None = Field(default=None)

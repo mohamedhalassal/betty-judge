@@ -1,5 +1,8 @@
 import subprocess
 import tempfile
+import resource
+import math
+
 import os
 import sys
 import time
@@ -30,6 +33,14 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 router = APIRouter()
 
+STATUS_IN_QUEUE = "IN_QUEUE"
+STATUS_ACCEPTED = "ACCEPTED"
+STATUS_WRONG_ANSWER = "WRONG_ANSWER"
+STATUS_TIME_LIMIT_EXCEEDED = "TIME_LIMIT_EXCEEDED"
+STATUS_RUNTIME_ERROR = "RUNTIME_ERROR"
+STATUS_COMPILE_ERROR = "COMPILE_ERROR"
+STATUS_MEMORY_LIMIT_EXCEEDED = "MEMORY_LIMIT_EXCEEDED"
+
 def validation(session: Session,submission_id: int):
       # Check if the submission exists
       submission = session.exec(select(Submission).where(Submission.id == submission_id)).first()
@@ -37,7 +48,7 @@ def validation(session: Session,submission_id: int):
           raise HTTPException(status_code=404, detail="Submission not found")
       
       # Check if the submission status is "in queue"
-      if submission.status != "in queue":
+      if submission.status != STATUS_IN_QUEUE:
           raise HTTPException(status_code=400, detail="Submission status is not in queue")
       
       # Check if the problem exists
@@ -70,8 +81,8 @@ def judge_submission(session: SessionDep, submission_id: int):
          # compilation error
          if compile_result.returncode != 0:
             result = session.exec(
-            update(Submission).values(status="compile error").
-            where((Submission.id == submission_id) & (Submission.status == "in queue")))
+            update(Submission).values(status=STATUS_COMPILE_ERROR).
+            where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE)))
             session.commit()
             return f"Compile error: {compile_result.stderr}"
      
@@ -81,54 +92,72 @@ def judge_submission(session: SessionDep, submission_id: int):
          memory_usage = 0 
 
         # run the executable with each test case and compare output
+         cpu_limit_seconds = max(1, math.ceil(problem.time_limit / 1000))
+
+         def limit_cpu():
+            resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds))
+
          for test_case in test_cases:
             # run the executable with the test case input
-            try:
               process = subprocess.Popen(
                 [str(exe_file)],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                preexec_fn=limit_cpu
             )
-              stdout, stderr = process.communicate(
-                input=test_case.input_data,
-                timeout=problem.time_limit,
-            )
-            # time limit exceeded
-            except subprocess.TimeoutExpired:
+              process.stdin.write(test_case.input_data)
+              process.stdin.close()
+              pid, status, usage = os.wait4(process.pid, 0)
+              process.returncode = os.waitstatus_to_exitcode(status)
+
+              # time limit exceeded
+              if process.returncode < 0:
                 process.kill()
-                process.communicate()
                 session.exec(
                     update(Submission)
-                    .values(status="time limit exceeded")
-                    .where((Submission.id == submission_id) & (Submission.status == "in queue"))
+                    .values(status=STATUS_TIME_LIMIT_EXCEEDED)
+                    .where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE))
                 )
                 session.commit()
                 return f"Time Limit Exceeded on test: {test_case.id}"
-            
-            # check for runtime errors
-            if process.returncode != 0:
-                result = session.exec(
-                    update(Submission).values(status="runtime error").
-                    where((Submission.id == submission_id) & (Submission.status == "in queue")))
-                session.commit()
-                return f"Runtime Error on test: {test_case.id}, error: {stderr}"
 
-            # measure execution time and memory usage
-            pid, status, usage = os.wait4(process.pid, 0)
-            cpu_time = usage.ru_utime + usage.ru_stime
-            memory_kb = usage.ru_maxrss
-            memory_usage = max(memory_usage, memory_kb)
-            execution_time = max(execution_time, cpu_time)
-
-            # check memory limit exceeded
-            if(memory_usage > problem.memory_limit):
+              # runtime error
+              if process.returncode > 0:
+                process.kill()
                 session.exec(
                     update(Submission)
-                    .values(status="memory limit exceeded",
+                    .values(status=STATUS_RUNTIME_ERROR)
+                    .where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE))
+                )
+                session.commit()
+                return f"Runtime Error: {test_case.id}"
+
+              # measure execution time and memory usage
+              cpu_time = (usage.ru_utime + usage.ru_stime) * 1000
+              memory_kb = usage.ru_maxrss/1024.  # to be in KB
+              memory_usage = max(memory_usage, memory_kb)
+              execution_time = max(execution_time, cpu_time)
+
+              # check time limit exceeded
+              if(execution_time > problem.time_limit):
+                process.kill()
+                session.exec(
+                    update(Submission)
+                    .values(status=STATUS_TIME_LIMIT_EXCEEDED)
+                    .where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE))
+                )
+                session.commit()
+                return f"Time Limit Exceeded on test: {test_case.id}"
+
+              # check memory limit exceeded
+              if(memory_usage > problem.memory_limit):
+                session.exec(
+                    update(Submission)
+                    .values(status=STATUS_MEMORY_LIMIT_EXCEEDED,
                     execution_time=execution_time,execution_memory=memory_usage)
-                    .where((Submission.id == submission_id) & (Submission.status == "in queue"))
+                    .where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE))
                 )
                 session.commit()
                 return f"Memory Limit Exceeded on test: {test_case.id}"
@@ -138,20 +167,21 @@ def judge_submission(session: SessionDep, submission_id: int):
             # todo : use checker_code and handle exceptions instead of manually checking returncode
             # todo : set test_case number for test_case
 
-            # compare output with expected output
-            if stdout.strip() != test_case.expected_output.strip():
+               # compare output with expected output
+              stdout = process.stdout.read()
+              if stdout.strip() != test_case.expected_output.strip():
                     result = session.exec(
-                        update(Submission).values(status="wrong answer",
+                        update(Submission).values(status=STATUS_WRONG_ANSWER,
                         execution_time=execution_time,execution_memory=memory_usage).
-                        where((Submission.id == submission_id) & (Submission.status == "in queue")))
+                        where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE)))
                     session.commit()
                     return f"Wrong Answer on test: {test_case.id}"
         
          # if all test cases pass, update submission status to "accepted"
          finalresult = session.exec(
-             update(Submission).values(status="accepted",
+             update(Submission).values(status=STATUS_ACCEPTED,
              execution_time=execution_time,execution_memory=memory_usage).
-             where((Submission.id == submission_id) & (Submission.status == "in queue")))
+             where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE)))
          session.commit()
          return "Accepted"
 

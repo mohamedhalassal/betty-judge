@@ -1,0 +1,93 @@
+from fastapi.testclient import TestClient
+from sqlmodel import SQLModel, Session, create_engine, select
+from sqlmodel.pool import StaticPool
+from src.models.submission import Submission
+from main import app
+from src.runner import get_session
+from src.models.user import User
+from src.models.problem import Problem
+from src.models.test_case import TestCase
+STATUS_IN_QUEUE = "IN_QUEUE"
+
+
+engine = create_engine(
+    "sqlite://",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+
+
+def get_test_session():
+    with Session(engine) as session:    
+        yield session
+
+client = TestClient(app)
+
+def setup_function():
+    SQLModel.metadata.create_all(engine)
+    app.dependency_overrides[get_session] = get_test_session
+
+def teardown_function():
+    app.dependency_overrides.clear()
+    SQLModel.metadata.drop_all(engine)
+def create_test_user(session):
+    user = User(
+        username="testuser",
+        email="test@example.com",
+        google_id="google-123",
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def create_test_problem(session, user, name="Two Sum"):
+    problem = Problem(
+        name=name,
+        statement="Sample statement",
+        created_by=user.id,
+        solution="Sample solution",
+        checker_code="Sample checker code",
+        time_limit=2000,
+        memory_limit= 5 * 1024 # 5 KB
+    )
+    session.add(problem)
+    session.commit()
+    session.refresh(problem)
+    return problem
+
+
+def create_test_case(session, problem, input_data, expected_output, is_sample):
+    test_case = TestCase(
+        input_data=input_data,
+        expected_output=expected_output,
+        is_sample=is_sample,
+        problem_id=problem.id
+    )
+    session.add(test_case)
+    session.commit()
+    session.refresh(test_case)
+    return test_case
+
+
+def test_ac_solution():
+     with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        problem_id = problem.id
+        test_case = create_test_case(session,problem,"2 3","5",False)
+        submission = Submission(
+            id=1,
+            user_id=user.id,
+            problem_id=problem_id,
+            source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
+            status=STATUS_IN_QUEUE
+        )
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert create_response.json() == "Accepted"
+

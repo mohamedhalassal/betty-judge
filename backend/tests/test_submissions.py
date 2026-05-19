@@ -6,7 +6,7 @@ from main import app
 from src.database import get_session
 from src.models.user import User
 from src.models.problem import Problem
-from src.models.submission import Submission
+from src.models.submission import Submission, SubmissionStatus
 from src.core.security import verify_access_token, get_current_user
 
 engine = create_engine(
@@ -73,11 +73,13 @@ def create_test_submission(
     user,
     problem,
     code="print('hello')",
+    verdict=SubmissionStatus.IN_QUEUE
 ):
     submission = Submission(
         source_code=code,
         problem_id=problem.id,
         user_id=user.id,
+        verdict=verdict
     )
 
     session.add(submission)

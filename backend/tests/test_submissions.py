@@ -73,13 +73,11 @@ def create_test_submission(
     user,
     problem,
     code="print('hello')",
-    verdict=None,
 ):
     submission = Submission(
         source_code=code,
         problem_id=problem.id,
         user_id=user.id,
-        verdict=verdict,
     )
 
     session.add(submission)

@@ -333,7 +333,7 @@ def test_filter_submissions_by_verdict():
             user,
             problem,
             code="print('AC')",
-            verdict="accepted"
+            verdict=SubmissionStatus.ACCEPTED
         )
 
         create_test_submission(
@@ -341,7 +341,7 @@ def test_filter_submissions_by_verdict():
             user,
             problem,
             code="print('WA')",
-            verdict="wrong_answer"
+            verdict=SubmissionStatus.WRONG_ANSWER
         )
 
     response = client.get("/submissions?verdict=accepted")
@@ -370,7 +370,7 @@ def test_filter_submissions_by_username_and_verdict():
             user1,
             problem,
             code="accepted code",
-            verdict="accepted"
+            verdict=SubmissionStatus.ACCEPTED
         )
 
         create_test_submission(
@@ -378,7 +378,7 @@ def test_filter_submissions_by_username_and_verdict():
             user1,
             problem,
             code="wrong answer code",
-            verdict="wrong_answer"
+            verdict=SubmissionStatus.WRONG_ANSWER
         )
 
         create_test_submission(
@@ -386,7 +386,7 @@ def test_filter_submissions_by_username_and_verdict():
             user2,
             problem,
             code="another accepted",
-            verdict="accepted"
+            verdict=SubmissionStatus.ACCEPTED
         )
 
     response = client.get(

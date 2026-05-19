@@ -9,7 +9,6 @@ from src.models.problem import Problem
 from src.models.submission import Submission
 from src.core.security import verify_access_token, get_current_user
 
-
 engine = create_engine(
     "sqlite://",
     connect_args={"check_same_thread": False},
@@ -69,11 +68,18 @@ def create_test_problem(session, user, name="Two Sum"):
     return problem
 
 
-def create_test_submission(session, user, problem, code="print('hello')"):
+def create_test_submission(
+    session,
+    user,
+    problem,
+    code="print('hello')",
+    verdict=None,
+):
     submission = Submission(
         source_code=code,
         problem_id=problem.id,
         user_id=user.id,
+        verdict=verdict,
     )
 
     session.add(submission)
@@ -93,19 +99,9 @@ def test_create_and_get_my_submissions():
 
         problem = create_test_problem(session, user1)
 
-        create_test_submission(
-            session,
-            user1,
-            problem,
-            code="print('user1')"
-        )
+        create_test_submission(session, user1, problem, code="print('user1')")
 
-        create_test_submission(
-            session,
-            user2,
-            problem,
-            code="print('user2')"
-        )
+        create_test_submission(session, user2, problem, code="print('user2')")
 
     app.dependency_overrides[get_current_user] = lambda: user1
 
@@ -133,11 +129,7 @@ def test_create_submission():
     app.dependency_overrides[get_current_user] = lambda: user
 
     response = client.post(
-        "/submit",
-        json={
-            "problem_id": problem.id,
-            "source_code": "print(123)"
-        }
+        "/submit", json={"problem_id": problem.id, "source_code": "print(123)"}
     )
 
     assert response.status_code == 201
@@ -159,11 +151,7 @@ def test_get_single_submission():
 
         problem = create_test_problem(session, user)
 
-        submission = create_test_submission(
-            session,
-            user,
-            problem
-        )
+        submission = create_test_submission(session, user, problem)
 
     app.dependency_overrides[get_current_user] = lambda: user
 
@@ -188,12 +176,7 @@ def test_submissions_pagination():
 
         for i in range(25):
 
-            create_test_submission(
-                session,
-                user,
-                problem,
-                code=f"print({i})"
-            )
+            create_test_submission(session, user, problem, code=f"print({i})")
 
     response = client.get("/submissions?page=1&size=10")
 
@@ -219,12 +202,7 @@ def test_submissions_second_page():
 
         for i in range(25):
 
-            create_test_submission(
-                session,
-                user,
-                problem,
-                code=f"print({i})"
-            )
+            create_test_submission(session, user, problem, code=f"print({i})")
 
     response = client.get("/submissions?page=2&size=10")
 
@@ -249,12 +227,7 @@ def test_submissions_last_page():
 
         for i in range(25):
 
-            create_test_submission(
-                session,
-                user,
-                problem,
-                code=f"print({i})"
-            )
+            create_test_submission(session, user, problem, code=f"print({i})")
 
     response = client.get("/submissions?page=3&size=10")
 
@@ -268,6 +241,7 @@ def test_submissions_last_page():
 
     assert data[-1]["source_code"] == "print(0)"
 
+
 def test_submissions_size_limit():
 
     response = client.get("/submissions?size=101")
@@ -280,14 +254,151 @@ def test_submissions_size_limit():
 
     assert data["detail"][0]["type"] == "less_than_equal"
 
+
 def test_submissions_invalid_page():
 
     response = client.get("/submissions?page=0")
 
     assert response.status_code == 422
 
+
 def test_submissions_invalid_size():
 
     response = client.get("/submissions?size=0")
 
     assert response.status_code == 422
+
+
+def test_filter_submissions_by_username():
+
+    with Session(engine) as session:
+
+        user1 = create_test_user(session, "ahmed")
+        user2 = create_test_user(session, "mohamed")
+
+        problem = create_test_problem(session, user1)
+
+        create_test_submission(session, user1, problem, code="print('ahmed')")
+
+        create_test_submission(session, user2, problem, code="print('mohamed')")
+
+    response = client.get("/submissions?username=ahmed")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+
+    assert data[0]["user_id"] == user1.id
+
+    assert data[0]["source_code"] == "print('ahmed')"
+
+
+def test_filter_submissions_by_problem():
+
+    with Session(engine) as session:
+
+        user = create_test_user(session)
+
+        problem1 = create_test_problem(session, user, "Two Sum")
+        problem2 = create_test_problem(session, user, "Binary Search")
+
+        create_test_submission(session, user, problem1, code="print('problem1')")
+
+        create_test_submission(session, user, problem2, code="print('problem2')")
+
+    response = client.get(f"/submissions?problem_id={problem1.id}")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+
+    assert data[0]["problem_id"] == problem1.id
+
+    assert data[0]["source_code"] == "print('problem1')"
+
+def test_filter_submissions_by_verdict():
+
+    with Session(engine) as session:
+
+        user = create_test_user(session)
+
+        problem = create_test_problem(session, user)
+
+        create_test_submission(
+            session,
+            user,
+            problem,
+            code="print('AC')",
+            verdict="accepted"
+        )
+
+        create_test_submission(
+            session,
+            user,
+            problem,
+            code="print('WA')",
+            verdict="wrong_answer"
+        )
+
+    response = client.get("/submissions?verdict=accepted")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+
+    assert data[0]["verdict"] == "accepted"
+
+    assert data[0]["source_code"] == "print('AC')"
+
+def test_filter_submissions_by_username_and_verdict():
+
+    with Session(engine) as session:
+
+        user1 = create_test_user(session, "ahmed")
+        user2 = create_test_user(session, "mohamed")
+
+        problem = create_test_problem(session, user1)
+
+        create_test_submission(
+            session,
+            user1,
+            problem,
+            code="accepted code",
+            verdict="accepted"
+        )
+
+        create_test_submission(
+            session,
+            user1,
+            problem,
+            code="wrong answer code",
+            verdict="wrong_answer"
+        )
+
+        create_test_submission(
+            session,
+            user2,
+            problem,
+            code="another accepted",
+            verdict="accepted"
+        )
+
+    response = client.get(
+        "/submissions?username=ahmed&verdict=accepted"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+
+    assert data[0]["source_code"] == "accepted code"
+
+    assert data[0]["verdict"] == "accepted"

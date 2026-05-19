@@ -16,14 +16,21 @@ def read_all_submissions(
     session: SessionDep,
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=100),
+    problem_id: Annotated[int | None, Query()] = None,
+    username: Annotated[str | None, Query()] = None,
+    verdict: Annotated[SubmissionStatus | None, Query()] = None,
 ):
+    statement = select(Submission).join(User, Submission.user_id == User.id)
+
+    if problem_id is not None:
+        statement = statement.where(Submission.problem_id == problem_id)
+    if username is not None:
+        statement = statement.where(User.username == username)
+    if verdict is not None:
+        statement = statement.where(Submission.verdict == verdict)
 
     offset = (page - 1) * size
-
-    statement = (
-        select(Submission).order_by(Submission.id.desc()).offset(offset).limit(size)
-    )
-
+    statement = statement.order_by(Submission.id.desc()).offset(offset).limit(size)
     submissions = session.exec(statement).all()
 
     return submissions

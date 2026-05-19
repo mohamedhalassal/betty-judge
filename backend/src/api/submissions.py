@@ -20,12 +20,12 @@ def read_all_submissions(
     username: Annotated[str | None, Query()] = None,
     verdict: Annotated[SubmissionStatus | None, Query()] = None,
 ):
-    statement = select(Submission).join(User, Submission.user_id == User.id)
+    statement = select(Submission)
 
     if problem_id is not None:
         statement = statement.where(Submission.problem_id == problem_id)
     if username is not None:
-        statement = statement.where(User.username == username)
+        statement = statement.where(User.username == username).join(User, Submission.user_id == User.id)
     if verdict is not None:
         statement = statement.where(Submission.verdict == verdict)
 

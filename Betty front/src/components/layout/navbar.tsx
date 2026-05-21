@@ -24,6 +24,12 @@ export function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    // eslint-disable-next-line
+    setMounted(true);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full glass-strong">
@@ -72,7 +78,7 @@ export function Navbar() {
 
         {/* Right Side */}
         <div className="hidden md:flex items-center gap-3">
-          {isAuthenticated && user ? (
+          {mounted && isAuthenticated && user ? (
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
@@ -171,7 +177,7 @@ export function Navbar() {
                 );
               })}
               <div className="pt-2 border-t border-border mt-2">
-                {isAuthenticated && user ? (
+                {mounted && isAuthenticated && user ? (
                   <>
                     <Link
                       href={`/profile/${user.username}`}

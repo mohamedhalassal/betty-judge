@@ -16,53 +16,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { VerdictBadge } from "@/components/submissions/verdict-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/shared/error-state";
 import {
   formatExecutionTime,
   formatMemory,
   formatDateTime,
 } from "@/lib/utils";
+import { useSubmission } from "@/lib/hooks/use-submissions";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => <Skeleton className="h-[400px] w-full" />,
 });
-
-// Mock data
-const mockSubmission = {
-  id: 1,
-  problem_id: 1,
-  problem_name: "Two Sum",
-  username: "user1",
-  status: "Accepted",
-  language: "cpp",
-  source_code: `#include <bits/stdc++.h>
-using namespace std;
-
-int main() {
-    ios_base::sync_with_stdio(false);
-    cin.tie(NULL);
-    
-    int n, target;
-    cin >> n;
-    vector<int> nums(n);
-    for (int i = 0; i < n; i++) cin >> nums[i];
-    cin >> target;
-    
-    unordered_map<int, int> mp;
-    for (int i = 0; i < n; i++) {
-        if (mp.count(target - nums[i])) {
-            cout << mp[target - nums[i]] << " " << i << endl;
-            return 0;
-        }
-        mp[nums[i]] = i;
-    }
-    
-    return 0;
-}`,
-  execution_time: 42,
-  execution_memory: 8400,
-  submitted_at: "2026-05-12T10:30:00Z",
-};
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -70,7 +35,26 @@ interface PageProps {
 
 export default function SubmissionDetailPage({ params }: PageProps) {
   const { id } = use(params);
-  const submission = mockSubmission;
+  const submissionId = parseInt(id, 10);
+  const { data: submission, isLoading, isError, refetch } = useSubmission(submissionId);
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    );
+  }
+
+  if (isError || !submission) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
+        <ErrorState title="Failed to load submission" onRetry={() => refetch()} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
@@ -99,14 +83,14 @@ export default function SubmissionDetailPage({ params }: PageProps) {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-3">
               Submission #{submission.id}
-              <VerdictBadge status={submission.status} showFull />
+              <VerdictBadge status={submission.verdict || "in_queue"} showFull />
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <Link
                 href={`/problems/${submission.problem_id}`}
                 className="text-primary hover:underline text-sm font-medium"
               >
-                {submission.problem_name}
+                Problem #{submission.problem_id}
               </Link>
             </div>
           </div>
@@ -123,9 +107,9 @@ export default function SubmissionDetailPage({ params }: PageProps) {
         {[
           {
             label: "Verdict",
-            value: submission.status,
+            value: (submission.verdict || "in_queue").replace(/_/g, " "),
             icon: Code2,
-            color: submission.status === "Accepted" ? "text-success" : "text-destructive",
+            color: submission.verdict === "accepted" ? "text-success" : (submission.verdict === "in_queue" ? "text-foreground-muted" : "text-destructive"),
           },
           {
             label: "Runtime",
@@ -135,7 +119,7 @@ export default function SubmissionDetailPage({ params }: PageProps) {
           },
           {
             label: "Memory",
-            value: formatMemory(submission.execution_memory),
+            value: formatMemory(0),
             icon: HardDrive,
             color: "text-primary",
           },
@@ -152,7 +136,7 @@ export default function SubmissionDetailPage({ params }: PageProps) {
                 <stat.icon className="h-3.5 w-3.5" />
                 {stat.label}
               </div>
-              <div className={`text-sm font-semibold ${stat.color}`}>
+              <div className={`text-sm font-semibold capitalize ${stat.color}`}>
                 {stat.value}
               </div>
             </CardContent>
@@ -170,16 +154,14 @@ export default function SubmissionDetailPage({ params }: PageProps) {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Source Code</CardTitle>
-              <Badge variant="outline">
-                {submission.language === "cpp" ? "C++" : submission.language}
-              </Badge>
+              <Badge variant="outline">Python</Badge>
             </div>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg overflow-hidden border border-border">
               <MonacoEditor
                 height="400px"
-                language={submission.language}
+                language="python"
                 value={submission.source_code}
                 theme="vs-dark"
                 options={{

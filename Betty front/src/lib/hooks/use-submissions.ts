@@ -1,13 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { submissionsApi } from "@/lib/api/submissions";
-import type { SubmitCodePayload } from "@/lib/types";
+import type { components } from "@/lib/types/api-schema";
+
+type SubmissionCreate = components["schemas"]["SubmissionCreate"];
 
 export function useSubmissions(params?: {
   page?: number;
-  limit?: number;
+  size?: number;
   problem_id?: number;
-  user_id?: number;
-  status?: string;
+  username?: string;
+  verdict?: components["schemas"]["SubmissionStatus"];
 }) {
   return useQuery({
     queryKey: ["submissions", params],
@@ -18,8 +20,8 @@ export function useSubmissions(params?: {
 
 export function useMySubmissions(params?: {
   page?: number;
-  limit?: number;
-  problem_id?: number;
+  size?: number;
+  verdict?: components["schemas"]["SubmissionStatus"];
 }) {
   return useQuery({
     queryKey: ["submissions", "me", params],
@@ -36,7 +38,7 @@ export function useSubmission(id: number) {
     staleTime: 5 * 1000,
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (data && (data.status === "Pending" || data.status === "Running")) {
+      if (data && (data.verdict === "in_queue")) {
         return 2000;
       }
       return false;
@@ -48,7 +50,7 @@ export function useSubmitCode() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: SubmitCodePayload) => submissionsApi.submit(data),
+    mutationFn: (data: SubmissionCreate) => submissionsApi.submit(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["submissions"] });
     },

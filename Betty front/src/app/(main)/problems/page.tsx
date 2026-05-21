@@ -15,22 +15,6 @@ import { useProblems } from "@/lib/hooks/use-problems";
 import { cn } from "@/lib/utils";
 import type { ProblemFilters } from "@/lib/types";
 
-// Mock data for demo (will be replaced with API data)
-const mockProblems = [
-  { id: 1, name: "Two Sum", difficulty: "Easy", acceptance_rate: 78.5, solved_by_user: true, tags: ["Array", "Hash Table"] },
-  { id: 2, name: "Add Two Numbers", difficulty: "Medium", acceptance_rate: 42.3, solved_by_user: false, tags: ["Linked List", "Math"] },
-  { id: 3, name: "Longest Substring Without Repeating Characters", difficulty: "Medium", acceptance_rate: 35.1, solved_by_user: true, tags: ["String", "Sliding Window"] },
-  { id: 4, name: "Median of Two Sorted Arrays", difficulty: "Hard", acceptance_rate: 22.8, solved_by_user: false, tags: ["Array", "Binary Search"] },
-  { id: 5, name: "Longest Palindromic Substring", difficulty: "Medium", acceptance_rate: 33.7, solved_by_user: false, tags: ["String", "DP"] },
-  { id: 6, name: "Regular Expression Matching", difficulty: "Hard", acceptance_rate: 18.2, solved_by_user: false, tags: ["String", "DP"] },
-  { id: 7, name: "Container With Most Water", difficulty: "Medium", acceptance_rate: 55.4, solved_by_user: true, tags: ["Array", "Two Pointers"] },
-  { id: 8, name: "3Sum", difficulty: "Medium", acceptance_rate: 32.6, solved_by_user: false, tags: ["Array", "Sorting"] },
-  { id: 9, name: "Valid Parentheses", difficulty: "Easy", acceptance_rate: 81.2, solved_by_user: true, tags: ["Stack", "String"] },
-  { id: 10, name: "Merge Two Sorted Lists", difficulty: "Easy", acceptance_rate: 72.9, solved_by_user: true, tags: ["Linked List", "Recursion"] },
-  { id: 11, name: "Maximum Subarray", difficulty: "Medium", acceptance_rate: 50.1, solved_by_user: false, tags: ["Array", "DP"] },
-  { id: 12, name: "Binary Tree Inorder Traversal", difficulty: "Easy", acceptance_rate: 74.6, solved_by_user: true, tags: ["Tree", "DFS"] },
-];
-
 const difficultyColor: Record<string, string> = {
   Easy: "text-success",
   Medium: "text-warning",
@@ -42,16 +26,16 @@ export default function ProblemsPage() {
   const [difficulty, setDifficulty] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Will use API data when backend is connected
-  // const { data, isLoading, isError, refetch } = useProblems(filters);
+  const filters: ProblemFilters = {
+    search: search || undefined,
+    difficulty: difficulty !== "all" ? difficulty : undefined,
+    status:
+      statusFilter !== "all"
+        ? (statusFilter as "solved" | "unsolved")
+        : undefined,
+  };
 
-  const filtered = mockProblems.filter((p) => {
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (difficulty !== "all" && p.difficulty !== difficulty) return false;
-    if (statusFilter === "solved" && !p.solved_by_user) return false;
-    if (statusFilter === "unsolved" && p.solved_by_user) return false;
-    return true;
-  });
+  const { data: problems, isLoading, isError, refetch } = useProblems(filters);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -121,13 +105,22 @@ export default function ProblemsPage() {
         </div>
 
         {/* Table Body */}
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="p-4">
+            <TableSkeleton columns={5} rows={5} />
+          </div>
+        ) : isError ? (
+          <ErrorState
+            title="Failed to load problems"
+            onRetry={() => refetch()}
+          />
+        ) : !problems || problems.length === 0 ? (
           <EmptyState
             title="No problems found"
             description="Try adjusting your filters or search query."
           />
         ) : (
-          filtered.map((problem, index) => (
+          problems.map((problem, index) => (
             <motion.div
               key={problem.id}
               initial={{ opacity: 0 }}
@@ -147,19 +140,28 @@ export default function ProblemsPage() {
                   </span>
                   <div className="flex gap-1.5 mt-1">
                     {problem.tags?.slice(0, 2).map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0"
+                      >
                         {tag}
                       </Badge>
                     ))}
                   </div>
                 </div>
                 <div className="text-center">
-                  <span className={cn("text-sm font-medium", difficultyColor[problem.difficulty || ""])}>
-                    {problem.difficulty}
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      difficultyColor[problem.difficulty || ""],
+                    )}
+                  >
+                    {problem.difficulty || "Unknown"}
                   </span>
                 </div>
                 <div className="text-center text-sm text-foreground-muted hidden sm:block">
-                  {problem.acceptance_rate?.toFixed(1)}%
+                  {problem.acceptance_rate?.toFixed(1) || "0.0"}%
                 </div>
                 <div className="flex justify-center">
                   {problem.solved_by_user ? (

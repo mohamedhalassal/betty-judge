@@ -3,7 +3,7 @@ import type { Problem, ProblemListItem, ProblemFilters, PaginatedResponse } from
 
 export const problemsApi = {
   getAll: async (filters?: ProblemFilters) => {
-    const res = await apiClient.get<PaginatedResponse<ProblemListItem>>("/problems", {
+    const res = await apiClient.get<ProblemListItem[]>("/problems", {
       params: filters,
     });
     return res.data;

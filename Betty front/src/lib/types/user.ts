@@ -22,6 +22,6 @@ export interface SubmissionSummary {
   id: number;
   problem_id: number;
   problem_name: string;
-  status: string | null;
+  vedict: string ;
   submitted_at: string;
 }

@@ -7,6 +7,8 @@ class ProblemCreate(BaseModel):
     statement: str
     solution: str | None = None
     checker_code: str | None = None
+    time_limit: int
+    memory_limit: int
 
 
 

@@ -12,3 +12,5 @@ class Problem(SQLModel, table=True):
     created_by: int = Field(foreign_key="users.id")
     solution: str | None = None
     checker_code: str | None = None
+    time_limit: int # in ms
+    memory_limit: int # in KB

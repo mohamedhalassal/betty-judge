@@ -49,6 +49,8 @@ def create_test_problem(session, user, name="Two Sum"):
         created_by=user.id,
         solution="Sample solution",
         checker_code="Sample checker code",
+        time_limit=2000, #in ms
+        memory_limit=100 # in MB
     )
     session.add(problem)
     session.commit()
@@ -66,7 +68,7 @@ def test_get_and_create_problems():
 
         problem = ProblemCreate(name="Two Sum", statement="Sample statement",
         solution="Sample solution", #pyright: ignore
-        checker_code="Sample checker code")
+        checker_code="Sample checker code",time_limit=2000, memory_limit=100)
         
         create_response = client.post("/problems", json=problem.model_dump())
         assert create_response.status_code == 201
@@ -74,7 +76,7 @@ def test_get_and_create_problems():
 
         problem = ProblemCreate(name="Playing Football", statement="Sample statement",
         solution="Sample solution", #pyright: ignore
-        checker_code="Sample checker code")
+        checker_code="Sample checker code",time_limit=2000, memory_limit=100)
         create_response = client.post("/problems", json=problem.model_dump())
         assert create_response.status_code == 201
 
@@ -122,6 +124,8 @@ def test_update_problem():
             "statement": "Updated statement",
             "solution": "Updated solution",
             "checker_code": "Updated checker",
+            "time_limit": "3000",
+            "memory_limit": "120"
         },
     )
 

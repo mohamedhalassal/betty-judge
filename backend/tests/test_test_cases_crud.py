@@ -51,6 +51,8 @@ def create_test_problem(session, user, name="Two Sum"):
         created_by=user.id,
         solution="Sample solution",
         checker_code="Sample checker code",
+        time_limit=2000,
+        memory_limit=100
     )
     session.add(problem)
     session.commit()

@@ -8,11 +8,11 @@ def utc_now(): return datetime.now(timezone.utc)
 class SubmissionStatus(str, Enum):
     IN_QUEUE = "in queue"
     ACCEPTED = "accepted"
-    WRONG_ANSWER = "wrong_answer"
-    TIME_LIMIT_EXCEEDED = "time_limit_exceeded"
-    RUNTIME_ERROR = "runtime_error"
-    COMPILE_ERROR = "compile_error"
-    MEMORY_LIMIT_EXCEEDED = "memory_limit_exceeded"
+    WRONG_ANSWER = "wrong answer"
+    TIME_LIMIT_EXCEEDED = "time limit exceeded"
+    RUNTIME_ERROR = "runtime error"
+    COMPILE_ERROR = "compile error"
+    MEMORY_LIMIT_EXCEEDED = "memory limit exceeded"
 
 class Submission(SQLModel, table=True):
     __tablename__ = "submissions"

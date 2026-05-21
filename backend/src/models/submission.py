@@ -17,11 +17,11 @@ class SubmissionStatus(str, Enum):
 class Submission(SQLModel, table=True):
     __tablename__ = "submissions"
     id:int |None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id")
-    problem_id: int = Field(foreign_key="problems.id")
+    user_id: int = Field(foreign_key="users.id",index=True)
+    problem_id: int = Field(foreign_key="problems.id", index=True)
     source_code: str
-    submitted_at: datetime = Field(default_factory=utc_now)
+    submitted_at: datetime = Field(default_factory=utc_now) 
     execution_time: int | None = None
     execution_memory: int | None = None 
-    status: SubmissionStatus | None = Field(default=None)
+    status: SubmissionStatus | None =  Field(default=SubmissionStatus.IN_QUEUE)
 

@@ -12,10 +12,10 @@ from typing import Annotated
 from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
 from sqlalchemy import update
 from sqlmodel import create_engine, Session, SQLModel, select
-from src.models.submission import Submission
-from src.models.problem import Problem
-from src.models.test_case import TestCase
-from src.models.submission import SubmissionStatus
+from backend.src.models.submission import Submission
+from backend.src.models.problem import Problem
+from backend.src.models.test_case import TestCase
+from backend.src.models.submission import SubmissionStatus
 
 # from src.models.problem import Problem
 # from src.models.user import User

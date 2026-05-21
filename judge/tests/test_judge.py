@@ -82,7 +82,7 @@ def test_accepted_solution():
             user_id=user.id,
             problem_id=problem_id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
-            status=SubmissionStatus.IN_QUEUE
+            verdict=SubmissionStatus.IN_QUEUE
         )
         session.add(submission)
         session.commit()
@@ -102,7 +102,7 @@ def test_wrong_solution():
             user_id=user.id,
             problem_id=problem_id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b+b;}",
-            status=SubmissionStatus.IN_QUEUE
+            verdict=SubmissionStatus.IN_QUEUE
         )
         session.add(submission)
         session.commit()
@@ -122,7 +122,7 @@ def test_compilation_error_solution():
             user_id=user.id,
             problem_id=problem_id,
             source_code="#include <iostream>\nint main(){int a,b std::cin>>a>>b; std::cout<<a+b;}", # forget ;
-            status=SubmissionStatus.IN_QUEUE
+            verdict=SubmissionStatus.IN_QUEUE
         )
         session.add(submission)
         session.commit()
@@ -142,7 +142,7 @@ def test_runtime_error_solution():
             user_id=user.id,
             problem_id=problem_id,
             source_code="#include <vector>\nint main(){ std::vector<int> a(3); return a.at(10); }",
-            status=SubmissionStatus.IN_QUEUE
+            verdict=SubmissionStatus.IN_QUEUE
         )
         session.add(submission)
         session.commit()
@@ -164,7 +164,7 @@ def test_time_limit_exceeded_solution():
             user_id=user.id,
             problem_id=problem_id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; for(int i=0;i<1e10;i++); std::cout<<a+b;}",
-            status=SubmissionStatus.IN_QUEUE
+            verdict=SubmissionStatus.IN_QUEUE
         )
         session.add(submission)
         session.commit()
@@ -184,7 +184,7 @@ def test_memory_limit_exceeded_solution():
             user_id=user.id,
             problem_id=problem_id,
             source_code="#include <iostream>\n int arr[100000000];int main(){int a,b; std::cin>>a>>b;for(int i=0;i<100000000;i++)arr[i]=i; std::cout<<a+b;}", 
-            status=SubmissionStatus.IN_QUEUE
+            verdict=SubmissionStatus.IN_QUEUE
         )
         session.add(submission)
         session.commit()

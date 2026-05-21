@@ -2,7 +2,7 @@ import subprocess
 import tempfile
 import resource
 import math
-
+import signal
 import os
 import sys
 import time
@@ -15,6 +15,8 @@ from sqlmodel import create_engine, Session, SQLModel, select
 from src.models.submission import Submission
 from src.models.problem import Problem
 from src.models.test_case import TestCase
+from src.models.submission import SubmissionStatus
+
 # from src.models.problem import Problem
 # from src.models.user import User
 # from src.models.test_case import TestCase
@@ -33,13 +35,6 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 router = APIRouter()
 
-STATUS_IN_QUEUE = "IN_QUEUE"
-STATUS_ACCEPTED = "ACCEPTED"
-STATUS_WRONG_ANSWER = "WRONG_ANSWER"
-STATUS_TIME_LIMIT_EXCEEDED = "TIME_LIMIT_EXCEEDED"
-STATUS_RUNTIME_ERROR = "RUNTIME_ERROR"
-STATUS_COMPILE_ERROR = "COMPILE_ERROR"
-STATUS_MEMORY_LIMIT_EXCEEDED = "MEMORY_LIMIT_EXCEEDED"
 
 def validation(session: Session,submission_id: int):
       # Check if the submission exists
@@ -48,7 +43,7 @@ def validation(session: Session,submission_id: int):
           raise HTTPException(status_code=404, detail="Submission not found")
       
       # Check if the submission status is "in queue"
-      if submission.status != STATUS_IN_QUEUE:
+      if submission.status != SubmissionStatus.IN_QUEUE:
           raise HTTPException(status_code=400, detail="Submission status is not in queue")
       
       # Check if the problem exists
@@ -81,8 +76,8 @@ def judge_submission(session: SessionDep, submission_id: int):
          # compilation error
          if compile_result.returncode != 0:
             result = session.exec(
-            update(Submission).values(status=STATUS_COMPILE_ERROR).
-            where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE)))
+            update(Submission).values(status=SubmissionStatus.COMPILE_ERROR).
+            where((Submission.id == submission_id) & (Submission.status == SubmissionStatus.IN_QUEUE)))
             session.commit()
             return f"Compile error: {compile_result.stderr}"
      
@@ -112,31 +107,31 @@ def judge_submission(session: SessionDep, submission_id: int):
               pid, status, usage = os.wait4(process.pid, 0)
               process.returncode = os.waitstatus_to_exitcode(status)
 
-              # time limit exceeded
+              # time limit exceeded and runtime error
               if process.returncode < 0:
-                process.kill()
-                session.exec(
-                    update(Submission)
-                    .values(status=STATUS_TIME_LIMIT_EXCEEDED)
-                    .where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE))
-                )
-                session.commit()
-                return f"Time Limit Exceeded on test: {test_case.id}"
+                sig = -process.returncode
 
-              # runtime error
-              if process.returncode > 0:
-                process.kill()
+                if sig in (signal.SIGXCPU, signal.SIGKILL):
+                    session.exec(
+                        update(Submission)
+                        .values(status=SubmissionStatus.TIME_LIMIT_EXCEEDED)
+                        .where((Submission.id == submission_id) &
+                            (Submission.status == SubmissionStatus.IN_QUEUE)))
+                    session.commit()
+                    return f"Time Limit Exceeded on test: {test_case.id}"
+
                 session.exec(
                     update(Submission)
-                    .values(status=STATUS_RUNTIME_ERROR)
-                    .where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE))
+                    .values(status=SubmissionStatus.RUNTIME_ERROR)
+                    .where((Submission.id == submission_id) &
+                        (Submission.status == SubmissionStatus.IN_QUEUE))
                 )
                 session.commit()
                 return f"Runtime Error: {test_case.id}"
 
               # measure execution time and memory usage
               cpu_time = (usage.ru_utime + usage.ru_stime) * 1000
-              memory_kb = usage.ru_maxrss/1024.  # to be in KB
+              memory_kb = usage.ru_maxrss/1024.  # to be in MB
               memory_usage = max(memory_usage, memory_kb)
               execution_time = max(execution_time, cpu_time)
 
@@ -145,8 +140,9 @@ def judge_submission(session: SessionDep, submission_id: int):
                 process.kill()
                 session.exec(
                     update(Submission)
-                    .values(status=STATUS_TIME_LIMIT_EXCEEDED)
-                    .where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE))
+                    .values(status=SubmissionStatus.TIME_LIMIT_EXCEEDED)
+                    .where((Submission.id == submission_id) & 
+                    (Submission.status == SubmissionStatus.IN_QUEUE))
                 )
                 session.commit()
                 return f"Time Limit Exceeded on test: {test_case.id}"
@@ -155,9 +151,10 @@ def judge_submission(session: SessionDep, submission_id: int):
               if(memory_usage > problem.memory_limit):
                 session.exec(
                     update(Submission)
-                    .values(status=STATUS_MEMORY_LIMIT_EXCEEDED,
+                    .values(status=SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
                     execution_time=execution_time,execution_memory=memory_usage)
-                    .where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE))
+                    .where((Submission.id == submission_id) & 
+                    (Submission.status == SubmissionStatus.IN_QUEUE))
                 )
                 session.commit()
                 return f"Memory Limit Exceeded on test: {test_case.id}"
@@ -171,17 +168,19 @@ def judge_submission(session: SessionDep, submission_id: int):
               stdout = process.stdout.read()
               if stdout.strip() != test_case.expected_output.strip():
                     result = session.exec(
-                        update(Submission).values(status=STATUS_WRONG_ANSWER,
+                        update(Submission).values(status=SubmissionStatus.WRONG_ANSWER,
                         execution_time=execution_time,execution_memory=memory_usage).
-                        where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE)))
+                        where((Submission.id == submission_id) & 
+                        (Submission.status == SubmissionStatus.IN_QUEUE)))
                     session.commit()
                     return f"Wrong Answer on test: {test_case.id}"
         
          # if all test cases pass, update submission status to "accepted"
          finalresult = session.exec(
-             update(Submission).values(status=STATUS_ACCEPTED,
+             update(Submission).values(status=SubmissionStatus.ACCEPTED,
              execution_time=execution_time,execution_memory=memory_usage).
-             where((Submission.id == submission_id) & (Submission.status == STATUS_IN_QUEUE)))
+             where((Submission.id == submission_id) & 
+             (Submission.status == SubmissionStatus.IN_QUEUE)))
          session.commit()
          return "Accepted"
 

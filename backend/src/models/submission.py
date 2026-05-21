@@ -24,3 +24,4 @@ class Submission(SQLModel, table=True):
     execution_time: int | None = None
     execution_memory: int | None = None 
     status: SubmissionStatus | None = Field(default=None)
+

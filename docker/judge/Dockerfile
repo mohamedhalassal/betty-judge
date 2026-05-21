@@ -7,13 +7,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     coreutils \
     time \
     && rm -rf /var/lib/apt/lists/*
-
+    
 RUN pip install --no-cache-dir \
     "fastapi[standard]" \
     sqlmodel \
     psycopg2-binary \
     python-dotenv \
-    python-jose
+    python-jose\
+    pytest
 
 COPY judge/ .
 RUN rm -f src/models && mkdir -p src/models

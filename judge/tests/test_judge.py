@@ -2,12 +2,12 @@ from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine, select
 from sqlmodel.pool import StaticPool
 from src.models.submission import Submission
-from main import app
 from src.runner import get_session
 from src.models.user import User
 from src.models.problem import Problem
 from src.models.test_case import TestCase
-STATUS_IN_QUEUE = "IN_QUEUE"
+from src.models.submission import SubmissionStatus
+from main import app
 
 
 engine = create_engine(
@@ -50,7 +50,7 @@ def create_test_problem(session, user, name="Two Sum"):
         solution="Sample solution",
         checker_code="Sample checker code",
         time_limit=2000,
-        memory_limit= 5 * 1024 # 5 KB
+        memory_limit= 100  # 100 MB
     )
     session.add(problem)
     session.commit()
@@ -71,7 +71,7 @@ def create_test_case(session, problem, input_data, expected_output, is_sample):
     return test_case
 
 
-def test_ac_solution():
+def test_accepted_solution():
      with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
@@ -82,7 +82,7 @@ def test_ac_solution():
             user_id=user.id,
             problem_id=problem_id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
-            status=STATUS_IN_QUEUE
+            status=SubmissionStatus.IN_QUEUE
         )
         session.add(submission)
         session.commit()
@@ -90,4 +90,107 @@ def test_ac_solution():
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == "Accepted"
+
+def test_wrong_solution():
+     with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        problem_id = problem.id
+        test_case = create_test_case(session,problem,"2 3","5",False)
+        submission = Submission(
+            id=1,
+            user_id=user.id,
+            problem_id=problem_id,
+            source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b+b;}",
+            status=SubmissionStatus.IN_QUEUE
+        )
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert create_response.json() == f"Wrong Answer on test: {test_case.id}"
+
+def test_compilation_error_solution():
+     with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        problem_id = problem.id
+        test_case = create_test_case(session,problem,"2 3","5",False)
+        submission = Submission(
+            id=1,
+            user_id=user.id,
+            problem_id=problem_id,
+            source_code="#include <iostream>\nint main(){int a,b std::cin>>a>>b; std::cout<<a+b;}", # forget ;
+            status=SubmissionStatus.IN_QUEUE
+        )
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert create_response.json().startswith("Compile error")
+
+def test_runtime_error_solution():
+     with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        problem_id = problem.id
+        test_case = create_test_case(session,problem,"2 3","5",False)
+        submission = Submission(
+            id=1,
+            user_id=user.id,
+            problem_id=problem_id,
+            source_code="#include <vector>\nint main(){ std::vector<int> a(3); return a.at(10); }",
+            status=SubmissionStatus.IN_QUEUE
+        )
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert create_response.json() == f"Runtime Error: {test_case.id}"
+
+
+
+def test_time_limit_exceeded_solution():
+     with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        problem_id = problem.id
+        test_case = create_test_case(session,problem,"2 3","5",False)
+        submission = Submission(
+            id=1,
+            user_id=user.id,
+            problem_id=problem_id,
+            source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; for(int i=0;i<1e10;i++); std::cout<<a+b;}",
+            status=SubmissionStatus.IN_QUEUE
+        )
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert create_response.json() == f"Time Limit Exceeded on test: {test_case.id}"
+
+def test_memory_limit_exceeded_solution():
+     with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        problem_id = problem.id
+        test_case = create_test_case(session,problem,"2 3","5",False)
+        submission = Submission(
+            id=1,
+            user_id=user.id,
+            problem_id=problem_id,
+            source_code="#include <iostream>\n int arr[100000000];int main(){int a,b; std::cin>>a>>b;for(int i=0;i<100000000;i++)arr[i]=i; std::cout<<a+b;}", 
+            status=SubmissionStatus.IN_QUEUE
+        )
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert create_response.json() == f"Memory Limit Exceeded on test: {test_case.id}"
+
 

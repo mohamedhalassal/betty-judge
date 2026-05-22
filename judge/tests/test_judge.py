@@ -1,11 +1,11 @@
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine, select
 from sqlmodel.pool import StaticPool
-from backend.src.models.submission import Submission
-from backend.src.models.user import User
-from backend.src.models.problem import Problem
-from backend.src.models.test_case import TestCase
-from backend.src.models.submission import SubmissionStatus
+from src.models.submission import Submission
+from src.models.user import User
+from src.models.problem import Problem
+from src.models.test_case import TestCase
+from src.models.submission import SubmissionStatus
 from src.runner import get_session
 from main import app
 

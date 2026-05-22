@@ -12,10 +12,10 @@ from typing import Annotated
 from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
 from sqlalchemy import update
 from sqlmodel import create_engine, Session, SQLModel, select
-from backend.src.models.submission import Submission
-from backend.src.models.problem import Problem
-from backend.src.models.test_case import TestCase
-from backend.src.models.submission import SubmissionStatus
+from src.models.submission import Submission
+from src.models.problem import Problem
+from src.models.test_case import TestCase
+from src.models.submission import SubmissionStatus
 
 # from src.models.problem import Problem
 # from src.models.user import User
@@ -89,8 +89,10 @@ def judge_submission(session: SessionDep, submission_id: int):
         # run the executable with each test case and compare output
          cpu_limit_seconds = max(1, math.ceil(problem.time_limit / 1000))
 
-         def limit_cpu():
-            resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds))
+         maxMemory = 1024 * 1024 * 1024 # 1 GB in bytes
+         def limit_resources():
+            resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds+2))
+            resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
 
          for test_case in test_cases:
             # run the executable with the test case input
@@ -100,18 +102,18 @@ def judge_submission(session: SessionDep, submission_id: int):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                preexec_fn=limit_cpu
+                preexec_fn=limit_resources
             )
               process.stdin.write(test_case.input_data)
               process.stdin.close()
               pid, status, usage = os.wait4(process.pid, 0)
               process.returncode = os.waitstatus_to_exitcode(status)
 
-              # time limit exceeded and runtime error
+              # time limit exceeded and runtime error and memory limit exceeded cases after signal
               if process.returncode < 0:
                 sig = -process.returncode
-
-                if sig in (signal.SIGXCPU, signal.SIGKILL):
+                # time limit exceeded case
+                if sig ==signal.SIGXCPU or (sig == signal.SIGKILL and usage.ru_utime + usage.ru_stime >= cpu_limit_seconds):
                     session.exec(
                         update(Submission)
                         .values(verdict=SubmissionStatus.TIME_LIMIT_EXCEEDED)
@@ -119,7 +121,21 @@ def judge_submission(session: SessionDep, submission_id: int):
                             (Submission.verdict == SubmissionStatus.IN_QUEUE)))
                     session.commit()
                     return f"Time Limit Exceeded on test: {test_case.id}"
+                stderr_lower = process.stderr.read().lower()
 
+                #  clear MLE cases
+                if "bad_alloc" in stderr_lower or "cannot allocate memory" in stderr_lower or "out of memory" in stderr_lower:
+                    session.exec(
+                        update(Submission)
+                        .values(verdict=SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+                        execution_time=execution_time,execution_memory=memory_usage)
+                        .where((Submission.id == submission_id) & 
+                        (Submission.verdict == SubmissionStatus.IN_QUEUE))
+                    )
+                    session.commit()
+                    return f"Memory Limit Exceeded on test: {test_case.id}"
+
+                #  maybe MLE, but conflicts with RE => say RE
                 session.exec(
                     update(Submission)
                     .values(verdict=SubmissionStatus.RUNTIME_ERROR)
@@ -135,9 +151,8 @@ def judge_submission(session: SessionDep, submission_id: int):
               memory_usage = max(memory_usage, memory_kb)
               execution_time = max(execution_time, cpu_time)
 
-              # check time limit exceeded
+              # check time limit exceeded again
               if(execution_time > problem.time_limit):
-                process.kill()
                 session.exec(
                     update(Submission)
                     .values(verdict=SubmissionStatus.TIME_LIMIT_EXCEEDED)
@@ -147,7 +162,7 @@ def judge_submission(session: SessionDep, submission_id: int):
                 session.commit()
                 return f"Time Limit Exceeded on test: {test_case.id}"
 
-              # check memory limit exceeded
+              # check memory limit exceeded again
               if(memory_usage > problem.memory_limit):
                 session.exec(
                     update(Submission)
@@ -158,6 +173,7 @@ def judge_submission(session: SessionDep, submission_id: int):
                 )
                 session.commit()
                 return f"Memory Limit Exceeded on test: {test_case.id}"
+          
             
             # todo: measure execution time and include it in the response
             # todo: handle time limit exceeded case and memory limit exceeded case

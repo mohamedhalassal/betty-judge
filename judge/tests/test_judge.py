@@ -172,6 +172,26 @@ def test_time_limit_exceeded_solution():
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == f"Time Limit Exceeded on test: {test_case.id}"
+def test_Ideleness_limit_exceeded_solution():
+     with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        problem_id = problem.id
+        test_case = create_test_case(session,problem,"2 3","5",False)
+        submission = Submission(
+            id=1,
+            user_id=user.id,
+            problem_id=problem_id,
+            source_code="#include <iostream>\n#include <unistd.h>\n int arr[100000000];int main(){int a,b;sleep(20); std::cin>>a>>b;for(int i=0;i<100000000;i++)arr[i]=i; std::cout<<a+b;}", 
+            verdict=SubmissionStatus.IN_QUEUE
+        )
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert create_response.json() == f"Idleness Limit Exceeded on test: {test_case.id}"
+
 
 def test_memory_limit_exceeded_solution():
      with Session(engine) as session:

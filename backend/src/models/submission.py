@@ -13,6 +13,7 @@ class SubmissionStatus(str, Enum):
     RUNTIME_ERROR = "runtime error"
     COMPILE_ERROR = "compile error"
     MEMORY_LIMIT_EXCEEDED = "memory limit exceeded"
+    IDLENESS_LIMIT_EXCEEDED = "idleness limit exceeded"
 
 class Submission(SQLModel, table=True):
     __tablename__ = "submissions"

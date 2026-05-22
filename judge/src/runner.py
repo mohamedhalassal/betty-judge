@@ -6,6 +6,7 @@ import signal
 import os
 import sys
 import time
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -94,7 +95,10 @@ def judge_submission(session: SessionDep, submission_id: int):
             resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds+2))
             resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
 
+       
          for test_case in test_cases:
+
+
             # run the executable with the test case input
               process = subprocess.Popen(
                 [str(exe_file)],
@@ -102,13 +106,44 @@ def judge_submission(session: SessionDep, submission_id: int):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                preexec_fn=limit_resources
+                preexec_fn=limit_resources,
+                start_new_session=True
             )
+
+              # set a wall clock time limit
+              wall_limit_seconds = cpu_limit_seconds * 3 + 5
+              wall_timed_out = {"value": False}
+
+              def kill_process():
+                    wall_timed_out["value"] = True
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
               process.stdin.write(test_case.input_data)
               process.stdin.close()
-              pid, status, usage = os.wait4(process.pid, 0)
+              timer = threading.Timer(wall_limit_seconds, kill_process)
+              timer.start()
+              try:
+                 pid, status, usage = os.wait4(process.pid, 0)
+              finally:
+                 timer.cancel()
+
               process.returncode = os.waitstatus_to_exitcode(status)
 
+              if wall_timed_out["value"]:
+               session.exec(
+                 update(Submission)
+                 .values(verdict=SubmissionStatus.IDLENESS_LIMIT_EXCEEDED)
+                 .where(
+                    (Submission.id == submission_id)
+                     & (Submission.verdict == SubmissionStatus.IN_QUEUE)
+                 )
+                )
+               session.commit()
+               return f"Idleness Limit Exceeded on test: {test_case.id}"
+        
               # time limit exceeded and runtime error and memory limit exceeded cases after signal
               if process.returncode < 0:
                 sig = -process.returncode

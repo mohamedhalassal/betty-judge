@@ -157,7 +157,7 @@ def test_runtime_error_solution():
         session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
-        assert create_response.json() == f"Runtime Error: {test_case.id}"
+        assert create_response.json() == f"Runtime Error on test: {test_case.id}"
 
 
 def test_time_limit_exceeded_solution():

@@ -63,6 +63,30 @@ def validation(session: Session, submission_id: int):
     return submission, problem
 
 
+def finish_submission(
+    session: Session,
+    submission_id: int,
+    verdict: SubmissionStatus,
+    message: str,
+    execution_time: float | None = None,
+    execution_memory: float | None = None,
+):
+    session.exec(
+        update(Submission)
+        .values(
+            verdict=verdict,
+            execution_time=execution_time,
+            execution_memory=execution_memory,
+        )
+        .where(
+            (Submission.id == submission_id)
+            & (Submission.verdict == SubmissionStatus.IN_QUEUE)
+        )
+    )
+    session.commit()
+    return message
+
+
 @router.post("/runner", status_code=201)
 def judge_submission(session: SessionDep, submission_id: int):
     submission, problem = validation(session, submission_id)
@@ -85,17 +109,14 @@ def judge_submission(session: SessionDep, submission_id: int):
 
         # compilation error
         if compile_result.returncode != 0:
-            result = session.exec(
-                update(Submission)
-                .values(verdict=SubmissionStatus.COMPILE_ERROR)
-                .where(
-                    (Submission.id == submission_id)
-                    & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-                )
+            message = f"Compile error: {compile_result.stderr}"
+            finish_submission(
+                session,
+                submission_id,
+                SubmissionStatus.COMPILE_ERROR,
+                message
             )
-            session.commit()
-            return f"Compile error: {compile_result.stderr}"
-
+            return message
         # get test cases for the problem
         test_cases = session.exec(
             select(TestCase).where(TestCase.problem_id == submission.problem_id)
@@ -138,23 +159,23 @@ def judge_submission(session: SessionDep, submission_id: int):
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
+
             timer = threading.Timer(wall_limit_seconds, kill_process)
             timer.start()
-            
+
             try:
                 try:
-                  process.stdin.write(test_case.input_data)
+                    process.stdin.write(test_case.input_data)
                 except BrokenPipeError:
-                  pass
+                    pass
                 finally:
                     try:
-                     process.stdin.close()
+                        process.stdin.close()
                     except BrokenPipeError:
-                     pass
+                        pass
             except OSError:
                 pass
-          
-          
+
             try:
                 pid, status, usage = os.wait4(process.pid, 0)
             finally:
@@ -163,17 +184,14 @@ def judge_submission(session: SessionDep, submission_id: int):
             process.returncode = os.waitstatus_to_exitcode(status)
 
             if wall_timed_out["value"]:
-                session.exec(
-                    update(Submission)
-                    .values(verdict=SubmissionStatus.IDLENESS_LIMIT_EXCEEDED)
-                    .where(
-                        (Submission.id == submission_id)
-                        & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-                    )
+                message = f"Idleness Limit Exceeded on test: {test_case.id}"
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.IDLENESS_LIMIT_EXCEEDED,
+                    message,
                 )
-                session.commit()
-                return f"Idleness Limit Exceeded on test: {test_case.id}"
-
+                return message  
             # time limit exceeded and runtime error and memory limit exceeded cases after signal
             if process.returncode != 0:
                 sig = -process.returncode
@@ -182,16 +200,14 @@ def judge_submission(session: SessionDep, submission_id: int):
                     sig == signal.SIGKILL
                     and usage.ru_utime + usage.ru_stime >= cpu_limit_seconds
                 ):
-                    session.exec(
-                        update(Submission)
-                        .values(verdict=SubmissionStatus.TIME_LIMIT_EXCEEDED)
-                        .where(
-                            (Submission.id == submission_id)
-                            & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-                        )
+                    message = f"Time Limit Exceeded on test: {test_case.id}"
+                    finish_submission(
+                        session,
+                        submission_id,
+                        SubmissionStatus.TIME_LIMIT_EXCEEDED,
+                        message,
                     )
-                    session.commit()
-                    return f"Time Limit Exceeded on test: {test_case.id}"
+                    return message
                 stderr_lower = process.stderr.read().lower()
 
                 #  clear MLE cases
@@ -200,33 +216,23 @@ def judge_submission(session: SessionDep, submission_id: int):
                     or "cannot allocate memory" in stderr_lower
                     or "out of memory" in stderr_lower
                 ):
-                    session.exec(
-                        update(Submission)
-                        .values(
-                            verdict=SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
-                            execution_time=execution_time,
-                            execution_memory=memory_usage,
-                        )
-                        .where(
-                            (Submission.id == submission_id)
-                            & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-                        )
+                    message = f"Memory Limit Exceeded on test: {test_case.id}"
+                    finish_submission(
+                        session,
+                        submission_id,
+                        SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+                        message,
                     )
-                    session.commit()
-                    return f"Memory Limit Exceeded on test: {test_case.id}"
-
+                    return message
                 #  maybe MLE, but conflicts with RE => say RE
-                session.exec(
-                    update(Submission)
-                    .values(verdict=SubmissionStatus.RUNTIME_ERROR)
-                    .where(
-                        (Submission.id == submission_id)
-                        & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-                    )
+                message = f"Runtime Error on test: {test_case.id}"
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.RUNTIME_ERROR,
+                    message,
                 )
-                session.commit()
-                return f"Runtime Error: {test_case.id}"
-
+                return message
             # measure execution time and memory usage
             cpu_time = (usage.ru_utime + usage.ru_stime) * 1000
             memory_kb = usage.ru_maxrss / 1024.0  # to be in MB
@@ -235,67 +241,48 @@ def judge_submission(session: SessionDep, submission_id: int):
 
             # check time limit exceeded again
             if execution_time > problem.time_limit:
-                session.exec(
-                    update(Submission)
-                    .values(verdict=SubmissionStatus.TIME_LIMIT_EXCEEDED)
-                    .where(
-                        (Submission.id == submission_id)
-                        & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-                    )
+                message = f"Time Limit Exceeded on test: {test_case.id}"
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.TIME_LIMIT_EXCEEDED,
+                    message,
                 )
-                session.commit()
-                return f"Time Limit Exceeded on test: {test_case.id}"
-
+                return message
             # check memory limit exceeded again
             if memory_usage > problem.memory_limit:
-                session.exec(
-                    update(Submission)
-                    .values(
-                        verdict=SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
-                        execution_time=execution_time,
-                        execution_memory=memory_usage,
-                    )
-                    .where(
-                        (Submission.id == submission_id)
-                        & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-                    )
+                message = f"Memory Limit Exceeded on test: {test_case.id}"
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+                    message,
                 )
-                session.commit()
-                return f"Memory Limit Exceeded on test: {test_case.id}"
-
+                return message
             # todo : use checker_code and handle exceptions instead of manually checking return output and expected output
             # todo : set test_case number for test_case
 
             # compare output with expected output
             stdout = process.stdout.read()
             if stdout.strip() != test_case.expected_output.strip():
-                result = session.exec(
-                    update(Submission)
-                    .values(
-                        verdict=SubmissionStatus.WRONG_ANSWER,
-                        execution_time=execution_time,
-                        execution_memory=memory_usage,
-                    )
-                    .where(
-                        (Submission.id == submission_id)
-                        & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-                    )
+                message = f"Wrong Answer on test: {test_case.id}"
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.WRONG_ANSWER,
+                    message,
                 )
-                session.commit()
-                return f"Wrong Answer on test: {test_case.id}"
+                return message
 
         # if all test cases pass, update submission verdict to "accepted"
-        finalresult = session.exec(
-            update(Submission)
-            .values(
-                verdict=SubmissionStatus.ACCEPTED,
-                execution_time=execution_time,
-                execution_memory=memory_usage,
-            )
-            .where(
-                (Submission.id == submission_id)
-                & (Submission.verdict == SubmissionStatus.IN_QUEUE)
-            )
+        message = "Accepted"
+        finish_submission(
+            session,
+            submission_id,
+            SubmissionStatus.ACCEPTED,
+            message,
+            execution_time=execution_time,
+            execution_memory=memory_usage,
         )
-        session.commit()
-        return "Accepted"
+        return message
+       

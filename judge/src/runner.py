@@ -106,7 +106,9 @@ def judge_submission(session: SessionDep, submission_id: int):
         # run the executable with each test case and compare output
         cpu_limit_seconds = max(1, math.ceil(problem.time_limit / 1000))
 
-        maxMemory = problem.memory_limit * 1024 * 1024 * 5  # Convert MB to bytes for RLIMIT_AS
+        maxMemory = (
+            problem.memory_limit * 1024 * 1024 * 5
+        )  # Convert MB to bytes for RLIMIT_AS
 
         def limit_resources():
             resource.setrlimit(
@@ -137,8 +139,19 @@ def judge_submission(session: SessionDep, submission_id: int):
                 except ProcessLookupError:
                     pass
 
-            process.stdin.write(test_case.input_data)
-            process.stdin.close()
+            try:
+                try:
+                  process.stdin.write(test_case.input_data)
+                except BrokenPipeError:
+                  pass
+                finally:
+                    try:
+                     process.stdin.close()
+                    except BrokenPipeError:
+                     pass
+            except OSError:
+                pass
+          
             timer = threading.Timer(wall_limit_seconds, kill_process)
             timer.start()
             try:
@@ -161,7 +174,7 @@ def judge_submission(session: SessionDep, submission_id: int):
                 return f"Idleness Limit Exceeded on test: {test_case.id}"
 
             # time limit exceeded and runtime error and memory limit exceeded cases after signal
-            if process.returncode < 0:
+            if process.returncode != 0:
                 sig = -process.returncode
                 # time limit exceeded case
                 if sig == signal.SIGXCPU or (
@@ -249,9 +262,7 @@ def judge_submission(session: SessionDep, submission_id: int):
                 session.commit()
                 return f"Memory Limit Exceeded on test: {test_case.id}"
 
-            # todo: measure execution time and include it in the response
-            # todo: handle time limit exceeded case and memory limit exceeded case
-            # todo : use checker_code and handle exceptions instead of manually checking returncode
+            # todo : use checker_code and handle exceptions instead of manually checking return output and expected output
             # todo : set test_case number for test_case
 
             # compare output with expected output

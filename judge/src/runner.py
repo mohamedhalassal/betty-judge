@@ -151,10 +151,11 @@ def judge_submission(session: SessionDep, submission_id: int):
 
             # set a wall clock time limit
             wall_limit_seconds = cpu_limit_seconds * 3 + 5
-            wall_timed_out = {"value": False}
+            wall_timed_out = False
 
             def kill_process():
-                wall_timed_out["value"] = True
+                nonlocal wall_timed_out
+                wall_timed_out = True
                 try:
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
@@ -183,7 +184,7 @@ def judge_submission(session: SessionDep, submission_id: int):
 
             process.returncode = os.waitstatus_to_exitcode(status)
 
-            if wall_timed_out["value"]:
+            if wall_timed_out:
                 message = f"Idleness Limit Exceeded on test: {test_case.id}"
                 finish_submission(
                     session,

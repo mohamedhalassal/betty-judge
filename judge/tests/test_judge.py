@@ -76,22 +76,36 @@ def create_test_case(session, problem, input_data, expected_output, is_sample):
     return test_case
 
 
+def create_test_submission(
+    session,
+    user,
+    problem_id,
+    source_code,
+    verdict=SubmissionStatus.IN_QUEUE,
+):
+    submission = Submission(
+        user_id=user.id,
+        problem_id=problem_id,
+        source_code=source_code,
+        verdict=verdict,
+    )
+    session.add(submission)
+    session.commit()
+    session.refresh(submission)
+    return submission
+
+
 def test_accepted_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
-        test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == "Accepted"
@@ -101,18 +115,13 @@ def test_wrong_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
         test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b+b;}",
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == f"Wrong Answer on test: {test_case.id}"
@@ -122,18 +131,13 @@ def test_compilation_error_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
-        test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <iostream>\nint main(){int a,b std::cin>>a>>b; std::cout<<a+b;}",  # forget ;
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json().startswith("Compile error")
@@ -143,18 +147,13 @@ def test_runtime_error_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
         test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <vector>\nint main(){ std::vector<int> a(3); return a.at(10); }",
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == f"Runtime Error on test: {test_case.id}"
@@ -164,18 +163,13 @@ def test_time_limit_exceeded_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
         test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; for(int i=0;i<1e10;i++); std::cout<<a+b;}",
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == f"Time Limit Exceeded on test: {test_case.id}"
@@ -185,39 +179,31 @@ def test_infinity_loop_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
         test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; for(int i=0;;i++); std::cout<<a+b;}",
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == f"Time Limit Exceeded on test: {test_case.id}"
+
+
 
 
 def test_infinity_sleep_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
         test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <iostream>\n #include <unistd.h>\n int main(){int a,b; std::cin>>a>>b; for(int i=0;;i++)sleep(1); std::cout<<a+b;}",
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == f"Idleness Limit Exceeded on test: {test_case.id}"
@@ -227,22 +213,53 @@ def test_Ideleness_limit_exceeded_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
         test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <iostream>\n#include <unistd.h>\n int arr[100000000];int main(){int a,b;sleep(20); std::cin>>a>>b;for(int i=0;i<100000000;i++)arr[i]=i; std::cout<<a+b;}",
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert (
             create_response.json() == f"Idleness Limit Exceeded on test: {test_case.id}"
+        )
+def test_infinity_input_solution():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        test_case = create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            source_code="#include <iostream>\nint main(){int x; while(true){std::cin>>x;}}",
+        )
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert create_response.json() == f"Time Limit Exceeded on test: {test_case.id}"
+
+
+def test_Infinite_output_solution():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        test_case = create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            source_code="#include <iostream>\nint main(){int a,b;std::cin>>a>>b;for(int i=0;;i++)std::cout<<a+b;}",
+        )
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        assert create_response.status_code == 201
+        assert (
+            create_response.json()
+            in (
+                f"Idleness Limit Exceeded on test: {test_case.id}",
+                f"Time Limit Exceeded on test: {test_case.id}",
+            )
         )
 
 
@@ -250,20 +267,177 @@ def test_memory_limit_exceeded_solution():
     with Session(engine) as session:
         user = create_test_user(session)
         problem = create_test_problem(session, user)
-        problem_id = problem.id
         test_case = create_test_case(session, problem, "2 3", "5", False)
-        submission = Submission(
-            id=1,
-            user_id=user.id,
-            problem_id=problem_id,
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
             source_code="#include <iostream>\n int arr[100000000];int main(){int a,b; std::cin>>a>>b;for(int i=0;i<100000000;i++)arr[i]=i; std::cout<<a+b;}",
-            verdict=SubmissionStatus.IN_QUEUE,
         )
-        session.add(submission)
-        session.commit()
-        session.refresh(submission)
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert (
             create_response.json() == f"Memory Limit Exceeded on test: {test_case.id}"
         )
+
+
+def test_submission_not_found():
+    create_response = client.post("/runner?submission_id=999")
+
+    assert create_response.status_code == 404
+    assert create_response.json()["detail"] == "Submission not found"
+
+
+def test_submission_verdict_not_in_queue():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            "#include <iostream>\nint main(){std::cout<<1;}",
+            verdict=SubmissionStatus.ACCEPTED,
+        )
+
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+
+        assert create_response.status_code == 400
+        assert create_response.json()["detail"] == "Submission verdict is not in queue"
+
+
+def test_problem_not_found():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        submission = create_test_submission(
+            session,
+            user,
+            999,
+            "#include <iostream>\nint main(){std::cout<<1;}",
+        )
+
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+
+        assert create_response.status_code == 404
+        assert create_response.json()["detail"] == "Problem not found"
+
+
+def test_wrong_answer_reports_first_failing_test_case():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        first_case = create_test_case(session, problem, "2 3", "5", False)
+        second_case = create_test_case(session, problem, "4 6", "11", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            "#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
+        )
+
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+
+        assert create_response.status_code == 201
+        assert create_response.json() == f"Wrong Answer on test: {second_case.id}"
+        assert create_response.json() != f"Wrong Answer on test: {first_case.id}"
+
+
+def test_accepted_solution_updates_submission_metrics():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            "#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
+        )
+
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
+
+        assert create_response.status_code == 201
+        assert create_response.json() == "Accepted"
+        assert updated_submission.verdict == SubmissionStatus.ACCEPTED
+        assert updated_submission.execution_time is not None
+        assert updated_submission.execution_memory is not None
+
+
+def test_wrong_answer_updates_submission_verdict():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            "#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b+b;}",
+        )
+
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
+
+        assert create_response.status_code == 201
+        assert updated_submission.verdict == SubmissionStatus.WRONG_ANSWER
+
+
+def test_compile_error_updates_submission_verdict():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            "#include <iostream>\nint main(){int a,b std::cin>>a>>b; std::cout<<a+b;}",
+        )
+
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
+
+        assert create_response.status_code == 201
+        assert updated_submission.verdict == SubmissionStatus.COMPILE_ERROR
+
+
+def test_output_comparison_ignores_outer_whitespace():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            "#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<\"\\n\"<<a+b<<\"\\n\\n\";}",
+        )
+
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+
+        assert create_response.status_code == 201
+        assert create_response.json() == "Accepted"
+
+
+def test_problem_with_no_test_cases_is_accepted():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            "#include <iostream>\nint main(){std::cout<<1;}",
+        )
+
+        create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
+
+        assert create_response.status_code == 201
+        assert create_response.json() == "Accepted"
+        assert updated_submission.verdict == SubmissionStatus.ACCEPTED

@@ -138,7 +138,9 @@ def judge_submission(session: SessionDep, submission_id: int):
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
-
+            timer = threading.Timer(wall_limit_seconds, kill_process)
+            timer.start()
+            
             try:
                 try:
                   process.stdin.write(test_case.input_data)
@@ -152,8 +154,7 @@ def judge_submission(session: SessionDep, submission_id: int):
             except OSError:
                 pass
           
-            timer = threading.Timer(wall_limit_seconds, kill_process)
-            timer.start()
+          
             try:
                 pid, status, usage = os.wait4(process.pid, 0)
             finally:

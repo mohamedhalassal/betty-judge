@@ -41,6 +41,20 @@ CDP_URL = "http://127.0.0.1:9222"
 CHROME_PROFILE_DIR = Path("./real-chrome-codeforces-profile").resolve()
 
 
+def normalize_source_code(source_code: str) -> str:
+    return (
+        source_code.replace("\ufeff", "")
+        .replace("\u00a0", " ")
+        .replace("\u2007", " ")
+        .replace("\u202f", " ")
+        .replace("\u200b", "")
+        .replace("\u200c", "")
+        .replace("\u200d", "")
+        .replace("\u200e", "")
+        .replace("\u200f", "")
+    )
+
+
 def codeforces_verdict_to_submission_status(verdict: str) -> SubmissionStatus:
     normalized = verdict.strip().lower()
     normalized = re.sub(r"\s+", " ", normalized)
@@ -261,7 +275,7 @@ async def read_submission_source(page, submission: Dict[str, str]) -> str | None
         return None
 
     source = await page.locator("#program-source-text").inner_text()
-    return html.unescape(source)
+    return normalize_source_code(html.unescape(source))
 
 
 def source_already_imported(

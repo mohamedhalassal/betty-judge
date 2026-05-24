@@ -17,6 +17,7 @@ from src.models.submission import Submission
 from src.models.problem import Problem
 from src.models.test_case import TestCase
 from src.models.submission import SubmissionStatus
+from dotenv import load_dotenv
 
 # from src.models.problem import Problem
 # from src.models.user import User
@@ -26,7 +27,14 @@ from src.models.submission import SubmissionStatus
 # from src.database import SessionDep, create_db_and_tables
 # from src.core.security import verify_access_token, get_current_user
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+REPO_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(REPO_DIR / "backend" / ".env")
+sys.path.insert(0, str(REPO_DIR / "judge"))
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL must be set in backend/.env")
+DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'").replace("\\&", "&")
 engine = create_engine(DATABASE_URL)
 
 
@@ -38,6 +46,20 @@ def get_session():
 SessionDep = Annotated[Session, Depends(get_session)]
 
 router = APIRouter()
+
+
+def normalize_source_code(source_code: str) -> str:
+    return (
+        source_code.replace("\ufeff", "")
+        .replace("\u00a0", " ")
+        .replace("\u2007", " ")
+        .replace("\u202f", " ")
+        .replace("\u200b", "")
+        .replace("\u200c", "")
+        .replace("\u200d", "")
+        .replace("\u200e", "")
+        .replace("\u200f", "")
+    )
 
 
 def validation(session: Session, submission_id: int):
@@ -97,11 +119,11 @@ def judge_submission(session: SessionDep, submission_id: int):
         source_file = temp_path / "main.cpp"
         exe_file = temp_path / "main"
         # write given source code to file
-        source_code = submission.source_code
+        source_code = normalize_source_code(submission.source_code)
         source_file.write_text(source_code)
         # compile
         compile_result = subprocess.run(
-            ["g++", str(source_file), "-o", str(exe_file)],
+            ["g++", "-std=gnu++20", "-O2", "-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
             capture_output=True,
             text=True,
         )
@@ -132,10 +154,17 @@ def judge_submission(session: SessionDep, submission_id: int):
         )  # Convert MB to bytes for RLIMIT_AS
 
         def limit_resources():
-            resource.setrlimit(
-                resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds + 2)
-            )
-            resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
+            try:
+                resource.setrlimit(
+                    resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds + 2)
+                )
+            except (OSError, ValueError):
+                pass
+
+            try:
+                resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
+            except (OSError, ValueError):
+                pass
 
         for test_case in test_cases:
             # run the executable with the test case input

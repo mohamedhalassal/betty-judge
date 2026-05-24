@@ -3,3 +3,8 @@ __pycache__/
 
 # OS files
 .DS_Store
+
+real-chrome-codeforces-profile/
+backend/real-chrome-codeforces-profile/
+
+node_modules/

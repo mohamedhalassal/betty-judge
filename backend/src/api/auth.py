@@ -11,6 +11,7 @@ from src.schemas.auth import GoogleLoginRequest
 
 from src.core.google_auth import verify_google_token
 from src.core.security import create_access_token, get_current_user
+from src.core.username import generate_unique_username
 
 router = APIRouter()
 
@@ -30,7 +31,6 @@ def login(
     data: GoogleLoginRequest,
     session: SessionDep,
     verify_token: GoogleTokenVerifierDep,
-    username: str | None = None,
 ):
     userInfo = verify_token(data.token)
     if not userInfo:
@@ -44,21 +44,11 @@ def login(
         access_token = create_access_token(existing_google_id.id)
         # TODO: add it in Client Cookies
         return {"access_token": access_token, "token_type": "bearer"}
-
-    if not username:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found. Username required for registration.",
-        )
-
-    existing_username = session.exec(
-        select(User).where(User.username == username)
-    ).first()
-    if existing_username:
-        raise HTTPException(status_code=400, detail="Username already taken.")
+    
+    generated_username = generate_unique_username(userInfo["email"], session)
 
     user_db = User(
-        username=username, email=userInfo["email"], google_id=userInfo["google_id"]
+        username=generated_username, email=userInfo["email"], google_id=userInfo["google_id"]
     )
     session.add(user_db)
     session.commit()

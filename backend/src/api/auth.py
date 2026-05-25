@@ -5,7 +5,7 @@ from src.database import engine, get_session, SessionDep
 from src.models.user import User
 from typing import Annotated, Callable
 
-from src.schemas.user import UserResponse
+from src.schemas.user import UserResponse,UpdateUsernameRequest
 
 from src.schemas.auth import GoogleLoginRequest
 
@@ -36,12 +36,12 @@ def login(
     if not userInfo:
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
-    existing_google_id = session.exec(
+    existing_user = session.exec(
         select(User).where(User.google_id == userInfo["google_id"])
     ).first()
 
-    if existing_google_id and existing_google_id.id:
-        access_token = create_access_token(existing_google_id.id)
+    if existing_user and existing_user.id:
+        access_token = create_access_token(existing_user.id)
         # TODO: add it in Client Cookies
         return {"access_token": access_token, "token_type": "bearer"}
     
@@ -59,4 +59,22 @@ def login(
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: Annotated[User, Depends(get_current_user)]):
+    return current_user
+
+@router.patch("/me/username", response_model=UserResponse)
+def update_username(
+    data: UpdateUsernameRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: SessionDep,
+):
+    existing_user = session.exec(
+        select(User).where(User.username == data.username)
+    ).first()
+    if existing_user and existing_user.id != current_user.id:
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    current_user.username = data.username
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
     return current_user

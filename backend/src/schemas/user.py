@@ -1,4 +1,4 @@
-from pydantic import BaseModel,Field
+from pydantic import BaseModel,Field, field_validator
 from datetime import datetime
 
 
@@ -17,3 +17,7 @@ class UpdateUsernameRequest(BaseModel):
         max_length=16,
         pattern=r"^[a-zA-Z0-9_]+$"
     )
+     @field_validator("username")
+     @classmethod
+     def normalize_username(cls, v):
+         return v.lower()

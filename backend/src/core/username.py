@@ -1,5 +1,6 @@
 import random
 import re
+import secrets
 from sqlmodel import select
 from src.models.user import User
 
@@ -17,6 +18,6 @@ def generate_unique_username(email: str, session):
         select(User).where(User.username == username)
     ).first():
 
-        username = f"{base_username}_{random.randint(1000,9999)}"
+        username = f"{base_username}_{secrets.randbelow(9000) + 1000}"
 
     return username

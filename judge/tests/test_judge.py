@@ -123,8 +123,12 @@ def test_wrong_solution():
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b+b;}",
         )
         create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
         assert create_response.json() == f"Wrong Answer on test: {test_case.id}"
+        assert updated_submission.execution_time is not None
+        assert updated_submission.execution_memory is not None
 
 
 def test_compilation_error_solution():
@@ -139,8 +143,12 @@ def test_compilation_error_solution():
             source_code="#include <iostream>\nint main(){int a,b std::cin>>a>>b; std::cout<<a+b;}",  # forget ;
         )
         create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
         assert create_response.json().startswith("Compile error")
+        assert updated_submission.execution_time == 0
+        assert updated_submission.execution_memory == 0
 
 
 def test_runtime_error_solution():
@@ -155,8 +163,12 @@ def test_runtime_error_solution():
             source_code="#include <vector>\nint main(){ std::vector<int> a(3); return a.at(10); }",
         )
         create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
         assert create_response.json() == f"Runtime Error on test: {test_case.id}"
+        assert updated_submission.execution_time is not None
+        assert updated_submission.execution_memory is not None
 
 
 def test_time_limit_exceeded_solution():
@@ -171,8 +183,12 @@ def test_time_limit_exceeded_solution():
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; for(int i=0;i<1e10;i++); std::cout<<a+b;}",
         )
         create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
         assert create_response.json() == f"Time Limit Exceeded on test: {test_case.id}"
+        assert updated_submission.execution_time == problem.time_limit
+        assert updated_submission.execution_memory is not None
 
 
 def test_infinity_loop_solution():
@@ -187,8 +203,12 @@ def test_infinity_loop_solution():
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; for(int i=0;;i++); std::cout<<a+b;}",
         )
         create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
         assert create_response.json() == f"Time Limit Exceeded on test: {test_case.id}"
+        assert updated_submission.execution_time == problem.time_limit
+        assert updated_submission.execution_memory is not None
 
 
 
@@ -205,8 +225,12 @@ def test_infinity_sleep_solution():
             source_code="#include <iostream>\n #include <unistd.h>\n int main(){int a,b; std::cin>>a>>b; for(int i=0;;i++)sleep(1); std::cout<<a+b;}",
         )
         create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
         assert create_response.json() == f"Idleness Limit Exceeded on test: {test_case.id}"
+        assert updated_submission.execution_time is not None
+        assert updated_submission.execution_memory is not None
 
 
 def test_Ideleness_limit_exceeded_solution():
@@ -275,10 +299,14 @@ def test_memory_limit_exceeded_solution():
             source_code="#include <iostream>\n int arr[100000000];int main(){int a,b; std::cin>>a>>b;for(int i=0;i<100000000;i++)arr[i]=i; std::cout<<a+b;}",
         )
         create_response = client.post(f"/runner?submission_id={submission.id}")
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
         assert (
             create_response.json() == f"Memory Limit Exceeded on test: {test_case.id}"
         )
+        assert updated_submission.execution_time is not None
+        assert updated_submission.execution_memory == problem.memory_limit
 
 
 def test_submission_not_found():

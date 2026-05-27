@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import threading
+import platform
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -109,6 +110,10 @@ def finish_submission(
     return message
 
 
+def max_rss_to_mb(max_rss: int) -> float:
+    return max_rss / 1024
+
+
 @router.post("/runner", status_code=201)
 def judge_submission(session: SessionDep, submission_id: int):
     submission, problem = validation(session, submission_id)
@@ -136,7 +141,9 @@ def judge_submission(session: SessionDep, submission_id: int):
                 session,
                 submission_id,
                 SubmissionStatus.COMPILE_ERROR,
-                message
+                message,
+                execution_time=0,
+                execution_memory=0,
             )
             return message
         # get test cases for the problem
@@ -212,6 +219,10 @@ def judge_submission(session: SessionDep, submission_id: int):
                 timer.cancel()
 
             process.returncode = os.waitstatus_to_exitcode(status)
+            cpu_time = (usage.ru_utime + usage.ru_stime) * 1000
+            memory_mb = max_rss_to_mb(usage.ru_maxrss)
+            current_execution_time = max(execution_time, cpu_time)
+            current_memory_usage = max(memory_usage, memory_mb)
 
             if wall_timed_out:
                 message = f"Idleness Limit Exceeded on test: {test_case.id}"
@@ -220,6 +231,8 @@ def judge_submission(session: SessionDep, submission_id: int):
                     submission_id,
                     SubmissionStatus.IDLENESS_LIMIT_EXCEEDED,
                     message,
+                    execution_time=current_execution_time,
+                    execution_memory=current_memory_usage,
                 )
                 return message  
             # time limit exceeded and runtime error and memory limit exceeded cases after signal
@@ -236,6 +249,8 @@ def judge_submission(session: SessionDep, submission_id: int):
                         submission_id,
                         SubmissionStatus.TIME_LIMIT_EXCEEDED,
                         message,
+                        execution_time=problem.time_limit,
+                        execution_memory=current_memory_usage,
                     )
                     return message
                 stderr_lower = process.stderr.read().lower()
@@ -252,6 +267,8 @@ def judge_submission(session: SessionDep, submission_id: int):
                         submission_id,
                         SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
                         message,
+                        execution_time=current_execution_time,
+                        execution_memory=problem.memory_limit,
                     )
                     return message
                 #  maybe MLE, but conflicts with RE => say RE
@@ -261,13 +278,13 @@ def judge_submission(session: SessionDep, submission_id: int):
                     submission_id,
                     SubmissionStatus.RUNTIME_ERROR,
                     message,
+                    execution_time=current_execution_time,
+                    execution_memory=current_memory_usage,
                 )
                 return message
             # measure execution time and memory usage
-            cpu_time = (usage.ru_utime + usage.ru_stime) * 1000
-            memory_kb = usage.ru_maxrss / 1024.0  # to be in MB
-            memory_usage = max(memory_usage, memory_kb)
-            execution_time = max(execution_time, cpu_time)
+            memory_usage = current_memory_usage
+            execution_time = current_execution_time
 
             # check time limit exceeded again
             if execution_time > problem.time_limit:
@@ -277,16 +294,8 @@ def judge_submission(session: SessionDep, submission_id: int):
                     submission_id,
                     SubmissionStatus.TIME_LIMIT_EXCEEDED,
                     message,
-                )
-                return message
-            # check memory limit exceeded again
-            if memory_usage > problem.memory_limit:
-                message = f"Memory Limit Exceeded on test: {test_case.id}"
-                finish_submission(
-                    session,
-                    submission_id,
-                    SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
-                    message,
+                    execution_time=problem.time_limit,
+                    execution_memory=memory_usage,
                 )
                 return message
             # todo : use checker_code and handle exceptions instead of manually checking return output and expected output
@@ -301,6 +310,8 @@ def judge_submission(session: SessionDep, submission_id: int):
                     submission_id,
                     SubmissionStatus.WRONG_ANSWER,
                     message,
+                    execution_time=execution_time,
+                    execution_memory=memory_usage,
                 )
                 return message
 

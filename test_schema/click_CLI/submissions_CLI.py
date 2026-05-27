@@ -16,23 +16,28 @@ from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 from sqlmodel import Session, select
 import click
+from sqlmodel import create_engine, Session, SQLModel
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
+BACKEND_DIR = Path(__file__).resolve().parents[2] / "backend"
 load_dotenv(BACKEND_DIR / ".env")
 sys.path.insert(0, str(BACKEND_DIR))
 
-from src.database import engine
-from src.models.problem import Problem
-from src.models.submission import Submission, SubmissionStatus
-from src.models.user import User
+TEST_SCHEMA_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(TEST_SCHEMA_DIR))
+
+DATABASE_URL = os.environ["DATABASE_URL"]
+engine = create_engine(DATABASE_URL)
+from models.problem import Problem
+from models.submission import Submission, SubmissionStatus
+from models.user import User
 
 # Configuration for the import process. Adjust these as needed.
 GROUP_ID = "MEqF8b6wBT"
 CONTEST_ID = "592431"
 PAGE_NUMBER = 1
 PROBLEM_FILTER = "V"
-IMPORT_USER_ID = 4
-IMPORT_PROBLEM_ID = 8
+IMPORT_USER_ID = 1
+IMPORT_PROBLEM_ID = 4
 
 BASE_URL = f"https://codeforces.com/group/{GROUP_ID}/contest/{CONTEST_ID}"
 STATUS_URL = f"{BASE_URL}/status"
@@ -74,6 +79,40 @@ def codeforces_verdict_to_submission_status(verdict: str) -> SubmissionStatus:
     if normalized.startswith("idleness limit exceeded"):
         return SubmissionStatus.IDLENESS_LIMIT_EXCEEDED
     return SubmissionStatus.IN_QUEUE
+
+
+def parse_codeforces_time_ms(value: str | None) -> int | None:
+    if not value:
+        return None
+    match = re.search(r"(\d+)", value.replace(",", ""))
+    return int(match.group(1)) if match else None
+
+
+def parse_codeforces_memory_bytes(value: str | None) -> int | None:
+    if not value:
+        return None
+
+    match = re.search(r"(\d+(?:\.\d+)?)\s*([kmgt]?b)?", value.strip(), re.IGNORECASE)
+    if not match:
+        return None
+
+    amount = float(match.group(1))
+    unit = (match.group(2) or "B").lower()
+    multipliers = {
+        "b": 1,
+        "kb": 1024,
+        "mb": 1024 * 1024,
+        "gb": 1024 * 1024 * 1024,
+        "tb": 1024 * 1024 * 1024 * 1024,
+    }
+    return int(amount * multipliers.get(unit, 1))
+
+
+def parse_failed_test(verdict: str | None) -> int | None:
+    if not verdict:
+        return None
+    match = re.search(r"\bon\s+test\s+(\d+)\b", verdict, re.IGNORECASE)
+    return int(match.group(1)) if match else None
 
 
 def required_int_env(name: str, value: str | None) -> int:
@@ -222,6 +261,8 @@ async def submissions_on_current_page(page) -> List[Dict[str, str]]:
                 "problem": cells[3],
                 "language": cells[4],
                 "verdict": cells[5],
+                "time": cells[6] if len(cells) > 6 else "",
+                "memory": cells[7] if len(cells) > 7 else "",
             }
         )
 
@@ -283,14 +324,13 @@ def source_already_imported(
     user_id: int,
     problem_id: int,
     source_code: str,
-    codeforces_verdict: SubmissionStatus,
+    codeforces_submission_id: int,
 ) -> bool:
     existing_submission = session.exec(
         select(Submission).where(
             Submission.user_id == user_id,
             Submission.problem_id == problem_id,
-            Submission.source_code == source_code,
-            Submission.codeforces_verdict == codeforces_verdict,
+            Submission.codeforces_submission_id == codeforces_submission_id,
         )
     ).first()
     return existing_submission is not None
@@ -303,13 +343,14 @@ def store_submission(
     user_id: int,
     problem_id: int,
 ) -> bool:
+    codeforces_submission_id = int(submission["id"])
     codeforces_verdict = codeforces_verdict_to_submission_status(submission["verdict"])
     if source_already_imported(
         session,
         user_id,
         problem_id,
         source_code,
-        codeforces_verdict,
+        codeforces_submission_id,
     ):
         click.echo(f"Skipping existing source for Codeforces submission {submission['id']}")
         return False
@@ -318,7 +359,11 @@ def store_submission(
         user_id=user_id,
         problem_id=problem_id,
         source_code=source_code,
+        codeforces_submission_id=codeforces_submission_id,
         codeforces_verdict=codeforces_verdict,
+        codeforces_time_ms=parse_codeforces_time_ms(submission.get("time")),
+        codeforces_memory_bytes=parse_codeforces_memory_bytes(submission.get("memory")),
+        codeforces_failed_test=parse_failed_test(submission["verdict"]),
     )
     session.add(db_submission)
     session.commit()
@@ -361,8 +406,8 @@ async def main() -> None:
 @click.command()
 @click.option("--problem-filter", default='A', help="Only import submissions for problems whose name starts with this string.")
 @click.option("--page-number", type=int, default=None, help="Only import submissions from this status page number.")
-@click.option("--user-id", type=int, default=4, help="The user ID to associate with the imported submissions.")
-@click.option("--problem-id", type=int, default=8, help="The problem ID to associate with the imported submissions.")
+@click.option("--user-id", type=int, default=1, help="The user ID to associate with the imported submissions.")
+@click.option("--problem-id", type=int, default=4, help="The problem ID to associate with the imported submissions.")
 def import_submissions(problem_filter, page_number, user_id, problem_id):
     global PROBLEM_FILTER, PAGE_NUMBER, IMPORT_USER_ID, IMPORT_PROBLEM_ID
     PROBLEM_FILTER = problem_filter

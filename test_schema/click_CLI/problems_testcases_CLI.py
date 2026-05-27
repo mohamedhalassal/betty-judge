@@ -13,16 +13,20 @@ import requests
 from dotenv import load_dotenv
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
+from sqlmodel import create_engine, Session, SQLModel
 
-
-BACKEND_DIR = Path(__file__).resolve().parents[1]
+BACKEND_DIR = Path(__file__).resolve().parents[2] / "backend"
 load_dotenv(BACKEND_DIR / ".env")
 sys.path.insert(0, str(BACKEND_DIR))
 
-from src.database import engine
-from src.models.problem import Problem
-from src.models.test_case import TestCase
-from src.models.user import User
+TEST_SCHEMA_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(TEST_SCHEMA_DIR))
+
+DATABASE_URL = os.environ["DATABASE_URL"]
+engine = create_engine(DATABASE_URL)
+from models.problem import Problem
+from models.test_case import TestCase
+from models.user import User
 
 
 BASE_URL = "https://polygon.codeforces.com/api/"

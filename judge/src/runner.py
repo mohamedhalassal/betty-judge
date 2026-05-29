@@ -127,16 +127,13 @@ def add_testcase_result(
     status: str,
     time_ms: float,
     memory_mb: float,
-    raw_ru_maxrss: int,
 ):
     testcases.append(
         {
             "number": number,
-            "id": test_case.id,
             "status": status,
             "time_ms": time_ms,
             "memory_mb": memory_mb,
-            "raw_ru_maxrss": raw_ru_maxrss,
         }
     )
 
@@ -160,7 +157,7 @@ def judge_submission(
         source_file.write_text(source_code)
         # compile
         compile_result = subprocess.run(
-            ["g++", "-std=gnu++20", "-O2", "-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
+            ["g++", "-std=gnu++23", "-O2","-static","-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
             capture_output=True,
             text=True,
         )
@@ -276,7 +273,6 @@ def judge_submission(
                     SubmissionStatus.IDLENESS_LIMIT_EXCEEDED.value,
                     cpu_time,
                     memory_mb,
-                    usage.ru_maxrss,
                 )
                 finish_submission(
                     session,
@@ -303,7 +299,6 @@ def judge_submission(
                         SubmissionStatus.TIME_LIMIT_EXCEEDED.value,
                         cpu_time,
                         memory_mb,
-                        usage.ru_maxrss,
                     )
                     finish_submission(
                         session,
@@ -330,7 +325,6 @@ def judge_submission(
                         SubmissionStatus.MEMORY_LIMIT_EXCEEDED.value,
                         cpu_time,
                         memory_mb,
-                        usage.ru_maxrss,
                     )
                     finish_submission(
                         session,
@@ -350,7 +344,6 @@ def judge_submission(
                     SubmissionStatus.RUNTIME_ERROR.value,
                     cpu_time,
                     memory_mb,
-                    usage.ru_maxrss,
                 )
                 finish_submission(
                     session,
@@ -374,7 +367,6 @@ def judge_submission(
                     SubmissionStatus.MEMORY_LIMIT_EXCEEDED.value,
                     cpu_time,
                     memory_mb,
-                    usage.ru_maxrss,
                 )
                 finish_submission(
                     session,
@@ -396,7 +388,6 @@ def judge_submission(
                     SubmissionStatus.TIME_LIMIT_EXCEEDED.value,
                     cpu_time,
                     memory_mb,
-                    usage.ru_maxrss,
                 )
                 finish_submission(
                     session,
@@ -421,7 +412,6 @@ def judge_submission(
                     SubmissionStatus.WRONG_ANSWER.value,
                     cpu_time,
                     memory_mb,
-                    usage.ru_maxrss,
                 )
                 finish_submission(
                     session,
@@ -439,7 +429,6 @@ def judge_submission(
                 "passed",
                 cpu_time,
                 memory_mb,
-                usage.ru_maxrss,
             )
 
         # if all test cases pass, update submission verdict to "accepted"

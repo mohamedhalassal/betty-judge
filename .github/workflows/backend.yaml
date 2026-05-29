@@ -41,10 +41,10 @@ jobs:
 
       - name: Tag image
         run: |
-          docker tag betty-backend ghcr.io/${{ github.repository_owner }}/betty-judge-backend:latest
-          docker tag betty-backend ghcr.io/${{ github.repository_owner }}/betty-judge-backend:${{ github.sha }}
+          docker tag betty-backend ghcr.io/${{ github.repository_owner }}/betty-backend:latest
+          docker tag betty-backend ghcr.io/${{ github.repository_owner }}/betty-backend:${{ github.sha }}
 
       - name: Push image
         run: |
-          docker push ghcr.io/${{ github.repository_owner }}/betty-judge-backend:latest
-          docker push ghcr.io/${{ github.repository_owner }}/betty-judge-backend:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/betty-backend:latest
+          docker push ghcr.io/${{ github.repository_owner }}/betty-backend:${{ github.sha }}

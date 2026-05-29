@@ -108,6 +108,10 @@ def log_comparison_details(
         "  Codeforces submission: "
         f"{format_optional_int(submission.codeforces_submission_id)}"
     )
+    log(
+        "  Codeforces failed test: "
+        f"{format_optional_int(submission.codeforces_failed_test)}"
+    )
     if is_mismatch:
         log(
             "  Mismatch details: "
@@ -165,8 +169,10 @@ def run_submission_in_docker(
     runner_url: str,
     submission_id: int,
     request_timeout: int,
-) -> str:
-    query = urllib.parse.urlencode({"submission_id": submission_id})
+) -> tuple[str, list[dict]]:
+    query = urllib.parse.urlencode(
+        {"submission_id": submission_id, "include_testcase_results": "true"}
+    )
     url = f"{runner_url.rstrip('/')}/runner?{query}"
     request = urllib.request.Request(url, method="POST")
 
@@ -185,30 +191,52 @@ def run_submission_in_docker(
     try:
         parsed_body = json.loads(body)
     except json.JSONDecodeError:
-        return body
-    return parsed_body if isinstance(parsed_body, str) else json.dumps(parsed_body)
+        return body, []
+    if isinstance(parsed_body, str):
+        return parsed_body, []
+    if isinstance(parsed_body, dict):
+        message = parsed_body.get("message")
+        testcases = parsed_body.get("testcases", [])
+        return (
+            message if isinstance(message, str) else json.dumps(parsed_body),
+            testcases if isinstance(testcases, list) else [],
+        )
+    return json.dumps(parsed_body), []
 
 
-def normalize_docker_memory(session: Session, submission_id: int):
-    submission = session.get(Submission, submission_id)
-    if submission is None:
-        return
+def log_testcase_results(testcases: list[dict]):
+    for testcase in testcases:
+        testcase_number = testcase.get("number")
+        testcase_id = testcase.get("id")
+        status = testcase.get("status", "-")
+        time_ms = testcase.get("time_ms")
+        memory_mb = testcase.get("memory_mb")
+        raw_ru_maxrss = testcase.get("raw_ru_maxrss")
+        log(
+            "  Testcase "
+            f"{format_optional_int(testcase_number)}: "
+            f"{status} | "
+            f"time={format_ms(time_ms)} "
+            f"memory={format_mb(memory_mb)} "
+            f"raw_ru_maxrss={format_optional_int(raw_ru_maxrss)} "
+            f"db_id={format_optional_int(testcase_id)}"
+        )
 
-    # Docker/Linux RSS is not comparable with Codeforces' displayed memory.
-    # Keep verdict/time from Docker, but use the imported Codeforces memory
-    # for compare output so Docker does not look like a false memory regression.
-    if submission.codeforces_memory_bytes is None:
-        return
 
-    session.exec(
-        update(Submission)
-        .where(Submission.id == submission_id)
-        .values(execution_memory=bytes_to_mb(submission.codeforces_memory_bytes))
-    )
-    session.commit()
+def parse_local_runner_response(response) -> tuple[str, list[dict]]:
+    if isinstance(response, str):
+        return response, []
+    if isinstance(response, dict):
+        message = response.get("message")
+        testcases = response.get("testcases", [])
+        return (
+            message if isinstance(message, str) else json.dumps(response),
+            testcases if isinstance(testcases, list) else [],
+        )
+    return str(response), []
 
 
-def run_submission_locally(session: Session, submission_id: int) -> str:
+def run_submission_locally(session: Session, submission_id: int) -> tuple[str, list[dict]]:
     import types
 
     sys.path.insert(0, str(JUDGE_DIR))
@@ -229,7 +257,9 @@ def run_submission_locally(session: Session, submission_id: int) -> str:
 
     from src.runner import judge_submission
 
-    return judge_submission(session, submission_id)
+    return parse_local_runner_response(
+        judge_submission(session, submission_id, include_testcase_results=True)
+    )
 
 
 @click.command()
@@ -318,14 +348,17 @@ def compare_codeforces_verdicts(
 
             try:
                 if local_runner:
-                    message = run_submission_locally(session, submission_id)
+                    message, testcase_results = run_submission_locally(
+                        session,
+                        submission_id,
+                    )
                 else:
-                    message = run_submission_in_docker(
+                    message, testcase_results = run_submission_in_docker(
                         runner_url,
                         submission_id,
                         request_timeout,
                     )
-                    normalize_docker_memory(session, submission_id)
+                log_testcase_results(testcase_results)
             except Exception as exc:
                 failed += 1
                 log(f"  FAILED: {exc}")

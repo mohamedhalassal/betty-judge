@@ -259,8 +259,8 @@ def judge_submission(
                 timer.cancel()
 
             process.returncode = os.waitstatus_to_exitcode(status)
-            cpu_time = (usage.ru_utime + usage.ru_stime) * 1000
-            memory_mb = max_rss_to_mb(usage.ru_maxrss)
+            cpu_time = int((usage.ru_utime + usage.ru_stime) * 1000)
+            memory_mb = int(max_rss_to_mb(usage.ru_maxrss))
             current_execution_time = max(execution_time, cpu_time)
             current_memory_usage = max(memory_usage, memory_mb)
 

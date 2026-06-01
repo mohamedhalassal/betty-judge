@@ -6,7 +6,7 @@ from src.models.user import User
 from src.models.problem import Problem
 from src.models.test_case import TestCase
 from src.models.submission import SubmissionStatus
-from src.runner import get_session
+from src.runner import add_testcase_result, get_session
 from main import app
 
 
@@ -109,6 +109,29 @@ def test_accepted_solution():
         create_response = client.post(f"/runner?submission_id={submission.id}")
         assert create_response.status_code == 201
         assert create_response.json() == "Accepted"
+
+
+def test_add_testcase_result_includes_test_case_id():
+    testcases = []
+    test_case = TestCase(
+        id=123,
+        problem_id=456,
+        input_data="2 3",
+        expected_output="5",
+        is_sample=False,
+    )
+
+    add_testcase_result(testcases, 1, test_case, "passed", 2.5, 1.25)
+
+    assert testcases == [
+        {
+            "id": 123,
+            "number": 1,
+            "status": "passed",
+            "time_ms": 2.5,
+            "memory_mb": 1.25,
+        }
+    ]
 
 
 def test_wrong_solution():

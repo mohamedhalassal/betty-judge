@@ -130,6 +130,7 @@ def add_testcase_result(
 ):
     testcases.append(
         {
+            "id": test_case.id,
             "number": number,
             "status": status,
             "time_ms": time_ms,
@@ -157,7 +158,7 @@ def judge_submission(
         source_file.write_text(source_code)
         # compile
         compile_result = subprocess.run(
-            ["g++", "-std=gnu++23", "-O2","-static","-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
+            ["g++", "-std=gnu++20", "-O2","-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
             capture_output=True,
             text=True,
         )

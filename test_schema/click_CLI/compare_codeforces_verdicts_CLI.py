@@ -211,15 +211,13 @@ def log_testcase_results(testcases: list[dict]):
         status = testcase.get("status", "-")
         time_ms = testcase.get("time_ms")
         memory_mb = testcase.get("memory_mb")
-        raw_ru_maxrss = testcase.get("raw_ru_maxrss")
         log(
             "  Testcase "
-            f"{format_optional_int(testcase_number)}: "
+            f"{format_optional_int(testcase_number)} "
+            f"(id={format_optional_int(testcase_id)}): "
             f"{status} | "
             f"time={format_ms(time_ms)} "
-            f"memory={format_mb(memory_mb)} "
-            f"raw_ru_maxrss={format_optional_int(raw_ru_maxrss)} "
-            f"db_id={format_optional_int(testcase_id)}"
+            f"memory={format_mb(memory_mb)}"
         )
 
 

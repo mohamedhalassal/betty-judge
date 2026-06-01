@@ -12,7 +12,7 @@ from src.runner import router as runner_router
 app = FastAPI()
 app.include_router(runner_router)
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
+BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
 load_dotenv(BACKEND_DIR / ".env")
 sys.path.insert(0, str(BACKEND_DIR))
 

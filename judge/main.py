@@ -1,6 +1,5 @@
 # todo if in production don't run this function
 from dotenv import load_dotenv
-load_dotenv()
 import sys
 from pathlib import Path
 from fastapi import FastAPI

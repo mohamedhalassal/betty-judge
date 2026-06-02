@@ -28,7 +28,7 @@ sys.path.insert(0, str(TEST_SCHEMA_DIR))
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
      raise click.ClickException("DATABASE_URL must be set in backend/.env")
-     engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL)
 from models.problem import Problem
 from models.submission import Submission, SubmissionStatus
 from models.user import User

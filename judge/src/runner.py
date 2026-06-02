@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import threading
+import platform
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -17,6 +18,7 @@ from src.models.submission import Submission
 from src.models.problem import Problem
 from src.models.test_case import TestCase
 from src.models.submission import SubmissionStatus
+from dotenv import load_dotenv
 
 # from src.models.problem import Problem
 # from src.models.user import User
@@ -26,7 +28,14 @@ from src.models.submission import SubmissionStatus
 # from src.database import SessionDep, create_db_and_tables
 # from src.core.security import verify_access_token, get_current_user
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+REPO_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(REPO_DIR / "backend" / ".env")
+sys.path.insert(0, str(REPO_DIR / "judge"))
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL must be set in backend/.env")
+DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'").replace("\\&", "&")
 engine = create_engine(DATABASE_URL)
 
 
@@ -38,6 +47,20 @@ def get_session():
 SessionDep = Annotated[Session, Depends(get_session)]
 
 router = APIRouter()
+
+
+def normalize_source_code(source_code: str) -> str:
+    return (
+        source_code.replace("\ufeff", "")
+        .replace("\u00a0", " ")
+        .replace("\u2007", " ")
+        .replace("\u202f", " ")
+        .replace("\u200b", "")
+        .replace("\u200c", "")
+        .replace("\u200d", "")
+        .replace("\u200e", "")
+        .replace("\u200f", "")
+    )
 
 
 def validation(session: Session, submission_id: int):
@@ -87,9 +110,43 @@ def finish_submission(
     return message
 
 
+def max_rss_to_mb(max_rss: int) -> float:
+    return max_rss / 1024
+
+
+def runner_response(message: str, testcases: list[dict], include_testcase_results: bool):
+    if not include_testcase_results:
+        return message
+    return {"message": message, "testcases": testcases}
+
+
+def add_testcase_result(
+    testcases: list[dict],
+    number: int,
+    test_case: TestCase,
+    status: str,
+    time_ms: float,
+    memory_mb: float,
+):
+    testcases.append(
+        {
+            "id": test_case.id,
+            "number": number,
+            "status": status,
+            "time_ms": time_ms,
+            "memory_mb": memory_mb,
+        }
+    )
+
+
 @router.post("/runner", status_code=201)
-def judge_submission(session: SessionDep, submission_id: int):
+def judge_submission(
+    session: SessionDep,
+    submission_id: int,
+    include_testcase_results: bool = False,
+):
     submission, problem = validation(session, submission_id)
+    testcase_results = []
 
     # compile the code
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -97,11 +154,11 @@ def judge_submission(session: SessionDep, submission_id: int):
         source_file = temp_path / "main.cpp"
         exe_file = temp_path / "main"
         # write given source code to file
-        source_code = submission.source_code
+        source_code = normalize_source_code(submission.source_code)
         source_file.write_text(source_code)
         # compile
         compile_result = subprocess.run(
-            ["g++", str(source_file), "-o", str(exe_file)],
+            ["g++", "-std=gnu++20", "-O2","-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
             capture_output=True,
             text=True,
         )
@@ -114,13 +171,11 @@ def judge_submission(session: SessionDep, submission_id: int):
                 session,
                 submission_id,
                 SubmissionStatus.COMPILE_ERROR,
-                message
+                message,
+                execution_time=0,
+                execution_memory=0,
             )
-            return message
-        # get test cases for the problem
-        test_cases = session.exec(
-            select(TestCase).where(TestCase.problem_id == submission.problem_id)
-        ).all()
+            return runner_response(message, testcase_results, include_testcase_results)
         execution_time = 0
         memory_usage = 0
 
@@ -132,12 +187,34 @@ def judge_submission(session: SessionDep, submission_id: int):
         )  # Convert MB to bytes for RLIMIT_AS
 
         def limit_resources():
-            resource.setrlimit(
-                resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds + 2)
-            )
-            resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
+            try:
+                resource.setrlimit(
+                    resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds + 2)
+                )
+            except (OSError, ValueError):
+                pass
 
-        for test_case in test_cases:
+            try:
+                resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
+            except (OSError, ValueError):
+                pass
+
+        test_case_number = 0
+        last_test_case_id = 0
+
+        while True:
+            test_case = session.exec(
+                select(TestCase)
+                .where(TestCase.problem_id == submission.problem_id)
+                .where(TestCase.id > last_test_case_id)
+                .order_by(TestCase.id)
+                .limit(1)
+            ).first()
+            if test_case is None:
+                break
+            test_case_number += 1
+            last_test_case_id = test_case.id
+
             # run the executable with the test case input
             process = subprocess.Popen(
                 [str(exe_file)],
@@ -183,16 +260,30 @@ def judge_submission(session: SessionDep, submission_id: int):
                 timer.cancel()
 
             process.returncode = os.waitstatus_to_exitcode(status)
+            cpu_time = int((usage.ru_utime + usage.ru_stime) * 1000)
+            memory_mb = int(max_rss_to_mb(usage.ru_maxrss))
+            current_execution_time = max(execution_time, cpu_time)
+            current_memory_usage = max(memory_usage, memory_mb)
 
             if wall_timed_out:
-                message = f"Idleness Limit Exceeded on test: {test_case.id}"
+                message = f"Idleness Limit Exceeded on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.IDLENESS_LIMIT_EXCEEDED.value,
+                    cpu_time,
+                    memory_mb,
+                )
                 finish_submission(
                     session,
                     submission_id,
                     SubmissionStatus.IDLENESS_LIMIT_EXCEEDED,
                     message,
+                    execution_time=current_execution_time,
+                    execution_memory=current_memory_usage,
                 )
-                return message  
+                return runner_response(message, testcase_results, include_testcase_results)  
             # time limit exceeded and runtime error and memory limit exceeded cases after signal
             if process.returncode != 0:
                 sig = -process.returncode
@@ -201,14 +292,24 @@ def judge_submission(session: SessionDep, submission_id: int):
                     sig == signal.SIGKILL
                     and usage.ru_utime + usage.ru_stime >= cpu_limit_seconds
                 ):
-                    message = f"Time Limit Exceeded on test: {test_case.id}"
+                    message = f"Time Limit Exceeded on test: {test_case_number}"
+                    add_testcase_result(
+                        testcase_results,
+                        test_case_number,
+                        test_case,
+                        SubmissionStatus.TIME_LIMIT_EXCEEDED.value,
+                        cpu_time,
+                        memory_mb,
+                    )
                     finish_submission(
                         session,
                         submission_id,
                         SubmissionStatus.TIME_LIMIT_EXCEEDED,
                         message,
+                        execution_time=problem.time_limit,
+                        execution_memory=current_memory_usage,
                     )
-                    return message
+                    return runner_response(message, testcase_results, include_testcase_results)
                 stderr_lower = process.stderr.read().lower()
 
                 #  clear MLE cases
@@ -217,63 +318,119 @@ def judge_submission(session: SessionDep, submission_id: int):
                     or "cannot allocate memory" in stderr_lower
                     or "out of memory" in stderr_lower
                 ):
-                    message = f"Memory Limit Exceeded on test: {test_case.id}"
+                    message = f"Memory Limit Exceeded on test: {test_case_number}"
+                    add_testcase_result(
+                        testcase_results,
+                        test_case_number,
+                        test_case,
+                        SubmissionStatus.MEMORY_LIMIT_EXCEEDED.value,
+                        cpu_time,
+                        memory_mb,
+                    )
                     finish_submission(
                         session,
                         submission_id,
                         SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
                         message,
+                        execution_time=current_execution_time,
+                        execution_memory=problem.memory_limit,
                     )
-                    return message
+                    return runner_response(message, testcase_results, include_testcase_results)
                 #  maybe MLE, but conflicts with RE => say RE
-                message = f"Runtime Error on test: {test_case.id}"
+                message = f"Runtime Error on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.RUNTIME_ERROR.value,
+                    cpu_time,
+                    memory_mb,
+                )
                 finish_submission(
                     session,
                     submission_id,
                     SubmissionStatus.RUNTIME_ERROR,
                     message,
+                    execution_time=current_execution_time,
+                    execution_memory=current_memory_usage,
                 )
-                return message
+                return runner_response(message, testcase_results, include_testcase_results)
             # measure execution time and memory usage
-            cpu_time = (usage.ru_utime + usage.ru_stime) * 1000
-            memory_kb = usage.ru_maxrss / 1024.0  # to be in MB
-            memory_usage = max(memory_usage, memory_kb)
-            execution_time = max(execution_time, cpu_time)
+            memory_usage = current_memory_usage
+            execution_time = current_execution_time
 
-            # check time limit exceeded again
-            if execution_time > problem.time_limit:
-                message = f"Time Limit Exceeded on test: {test_case.id}"
-                finish_submission(
-                    session,
-                    submission_id,
-                    SubmissionStatus.TIME_LIMIT_EXCEEDED,
-                    message,
-                )
-                return message
-            # check memory limit exceeded again
             if memory_usage > problem.memory_limit:
-                message = f"Memory Limit Exceeded on test: {test_case.id}"
+                message = f"Memory Limit Exceeded on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.MEMORY_LIMIT_EXCEEDED.value,
+                    cpu_time,
+                    memory_mb,
+                )
                 finish_submission(
                     session,
                     submission_id,
                     SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
                     message,
+                    execution_time=execution_time,
+                    execution_memory=problem.memory_limit,
                 )
-                return message
+                return runner_response(message, testcase_results, include_testcase_results)
+
+            # check time limit exceeded again
+            if execution_time > problem.time_limit:
+                message = f"Time Limit Exceeded on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.TIME_LIMIT_EXCEEDED.value,
+                    cpu_time,
+                    memory_mb,
+                )
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.TIME_LIMIT_EXCEEDED,
+                    message,
+                    execution_time=problem.time_limit,
+                    execution_memory=memory_usage,
+                )
+                return runner_response(message, testcase_results, include_testcase_results)
             # todo : use checker_code and handle exceptions instead of manually checking return output and expected output
             # todo : set test_case number for test_case
 
             # compare output with expected output
             stdout = process.stdout.read()
             if stdout.strip() != test_case.expected_output.strip():
-                message = f"Wrong Answer on test: {test_case.id}"
+                message = f"Wrong Answer on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.WRONG_ANSWER.value,
+                    cpu_time,
+                    memory_mb,
+                )
                 finish_submission(
                     session,
                     submission_id,
                     SubmissionStatus.WRONG_ANSWER,
                     message,
+                    execution_time=execution_time,
+                    execution_memory=memory_usage,
                 )
-                return message
+                return runner_response(message, testcase_results, include_testcase_results)
+            add_testcase_result(
+                testcase_results,
+                test_case_number,
+                test_case,
+                "passed",
+                cpu_time,
+                memory_mb,
+            )
 
         # if all test cases pass, update submission verdict to "accepted"
         message = "Accepted"
@@ -285,5 +442,5 @@ def judge_submission(session: SessionDep, submission_id: int):
             execution_time=execution_time,
             execution_memory=memory_usage,
         )
-        return message
+        return runner_response(message, testcase_results, include_testcase_results)
        

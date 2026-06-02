@@ -1,6 +1,8 @@
 # todo if in production don't run this function
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
+
+load_dotenv(Path(__file__).parent / ".env")
 from src.database import create_db_and_tables
 
 from fastapi import FastAPI

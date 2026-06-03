@@ -4,6 +4,8 @@ WORKDIR /app
 # Update package list, install g++, coreutils, and time, then clean package cache.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
+    g++-multilib \
+    libc6-dev-i386 \
     coreutils \
     time \
     && rm -rf /var/lib/apt/lists/*

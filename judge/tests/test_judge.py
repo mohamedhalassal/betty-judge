@@ -106,7 +106,7 @@ def test_accepted_solution():
             problem.id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         assert create_response.status_code == 201
         assert create_response.json() == "Accepted"
 
@@ -145,7 +145,7 @@ def test_wrong_solution():
             problem.id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b+b;}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
@@ -165,7 +165,7 @@ def test_compilation_error_solution():
             problem.id,
             source_code="#include <iostream>\nint main(){int a,b std::cin>>a>>b; std::cout<<a+b;}",  # forget ;
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
@@ -185,7 +185,7 @@ def test_runtime_error_solution():
             problem.id,
             source_code="#include <vector>\nint main(){ std::vector<int> a(3); return a.at(10); }",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
@@ -205,7 +205,7 @@ def test_time_limit_exceeded_solution():
             problem.id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; for(int i=0;i<1e10;i++); std::cout<<a+b;}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
@@ -225,7 +225,7 @@ def test_infinity_loop_solution():
             problem.id,
             source_code="#include <iostream>\nint main(){int a,b; std::cin>>a>>b; for(int i=0;;i++); std::cout<<a+b;}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
@@ -247,7 +247,7 @@ def test_infinity_sleep_solution():
             problem.id,
             source_code="#include <iostream>\n #include <unistd.h>\n int main(){int a,b; std::cin>>a>>b; for(int i=0;;i++)sleep(1); std::cout<<a+b;}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
@@ -267,7 +267,7 @@ def test_Ideleness_limit_exceeded_solution():
             problem.id,
             source_code="#include <iostream>\n#include <unistd.h>\n int arr[100000000];int main(){int a,b;sleep(20); std::cin>>a>>b;for(int i=0;i<100000000;i++)arr[i]=i; std::cout<<a+b;}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         assert create_response.status_code == 201
         assert (
             create_response.json() == f"Idleness Limit Exceeded on test: {test_case.id}"
@@ -283,7 +283,7 @@ def test_infinity_input_solution():
             problem.id,
             source_code="#include <iostream>\nint main(){int x; while(true){std::cin>>x;}}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         assert create_response.status_code == 201
         assert create_response.json() == f"Time Limit Exceeded on test: {test_case.id}"
 
@@ -299,7 +299,7 @@ def test_Infinite_output_solution():
             problem.id,
             source_code="#include <iostream>\nint main(){int a,b;std::cin>>a>>b;for(int i=0;;i++)std::cout<<a+b;}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         assert create_response.status_code == 201
         assert (
             create_response.json()
@@ -321,7 +321,7 @@ def test_memory_limit_exceeded_solution():
             problem.id,
             source_code="#include <iostream>\n int arr[100000000];int main(){int a,b; std::cin>>a>>b;for(int i=0;i<100000000;i++)arr[i]=i; std::cout<<a+b;}",
         )
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
         assert create_response.status_code == 201
@@ -333,7 +333,8 @@ def test_memory_limit_exceeded_solution():
 
 
 def test_submission_not_found():
-    create_response = client.post("/runner?submission_id=999")
+    with Session(engine) as session:
+        create_response = run_judge(session, 999)
 
     assert create_response.status_code == 404
     assert create_response.json()["detail"] == "Submission not found"
@@ -351,7 +352,7 @@ def test_submission_verdict_not_in_queue():
             verdict=SubmissionStatus.ACCEPTED,
         )
 
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
 
         assert create_response.status_code == 400
         assert create_response.json()["detail"] == "Submission verdict is not in queue"
@@ -367,7 +368,7 @@ def test_problem_not_found():
             "#include <iostream>\nint main(){std::cout<<1;}",
         )
 
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
 
         assert create_response.status_code == 404
         assert create_response.json()["detail"] == "Problem not found"
@@ -386,7 +387,7 @@ def test_wrong_answer_reports_first_failing_test_case():
             "#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
         )
 
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
 
         assert create_response.status_code == 201
         assert create_response.json() == f"Wrong Answer on test: {second_case.id}"
@@ -405,7 +406,7 @@ def test_accepted_solution_updates_submission_metrics():
             "#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b;}",
         )
 
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
 
@@ -428,7 +429,7 @@ def test_wrong_answer_updates_submission_verdict():
             "#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<a+b+b;}",
         )
 
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
 
@@ -448,7 +449,7 @@ def test_compile_error_updates_submission_verdict():
             "#include <iostream>\nint main(){int a,b std::cin>>a>>b; std::cout<<a+b;}",
         )
 
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
 
@@ -468,7 +469,7 @@ def test_output_comparison_ignores_outer_whitespace():
             "#include <iostream>\nint main(){int a,b; std::cin>>a>>b; std::cout<<\"\\n\"<<a+b<<\"\\n\\n\";}",
         )
 
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
 
         assert create_response.status_code == 201
         assert create_response.json() == "Accepted"
@@ -485,7 +486,7 @@ def test_problem_with_no_test_cases_is_accepted():
             "#include <iostream>\nint main(){std::cout<<1;}",
         )
 
-        create_response = client.post(f"/runner?submission_id={submission.id}")
+        create_response = run_judge(session, submission.id)
         session.expire_all()
         updated_submission = session.get(Submission, submission.id)
 

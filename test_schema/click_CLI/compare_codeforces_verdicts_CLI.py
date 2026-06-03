@@ -30,6 +30,55 @@ DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'").replace("\\&", "&")
 engine = create_engine(DATABASE_URL)
 
 
+from confluent_kafka import Producer #pyright: ignore
+from confluent_kafka.admin import AdminClient, NewTopic  # pyright: ignore
+
+KAFKA_TOPIC = "submissions"
+KAFKA_PARTITIONS = 8
+
+producer_config = {
+    "bootstrap.servers": "localhost:9092",
+    "acks": "all",
+}
+
+producer = Producer(producer_config)
+
+def delivery_report(err, msg):
+    if err:
+        print(f"❌ Delivery failed: {err}")
+    else:
+        print(f"✅ Delivered to {msg.topic()} : partition {msg.partition()} : at offset {msg.offset()}")
+
+admin = AdminClient({
+    "bootstrap.servers": "localhost:9092"
+})
+
+
+def create_submissions_topic():
+    metadata = admin.list_topics(timeout=10)
+    if KAFKA_TOPIC in metadata.topics:
+        return
+
+    result = admin.create_topics([
+        NewTopic(KAFKA_TOPIC, num_partitions=KAFKA_PARTITIONS, replication_factor=1)
+    ])
+    result[KAFKA_TOPIC].result()
+    log(f"✅ Created topic {KAFKA_TOPIC} with {KAFKA_PARTITIONS} partitions")
+
+
+def send_submission_to_kafka(submission_id: int):
+    event = {
+        "event_type": "SUBMISSION_CREATED",
+        "submission_id": submission_id,
+    }
+    producer.produce(
+        KAFKA_TOPIC,
+        key=str(submission_id),
+        value=json.dumps(event).encode("utf-8"),
+        callback=delivery_report,
+    )
+    producer.flush()
+
 def masked_database_url() -> str:
     database_url = os.getenv("DATABASE_URL", "")
     if "@" not in database_url:
@@ -309,6 +358,12 @@ def run_submission_locally(session: Session, submission_id: int) -> tuple[str, l
     is_flag=True,
     help="Run judge_submission in this Python process instead of calling Docker.",
 )
+@click.option(
+    "--kafka-producer/--no-kafka-producer",
+    default=True,
+    show_default=True,
+    help="Send selected submissions to Kafka instead of running the judge.",
+)
 def compare_codeforces_verdicts(
     problem_id,
     limit,
@@ -318,6 +373,7 @@ def compare_codeforces_verdicts(
     runner_url,
     request_timeout,
     local_runner,
+    kafka_producer,
 ):
     """Run local judge on submissions and compare with Codeforces verdicts."""
     checked = 0
@@ -325,6 +381,10 @@ def compare_codeforces_verdicts(
     mismatched = 0
     ignored_local_tle = 0
     failed = 0
+    produced = 0
+
+    if kafka_producer:
+        create_submissions_topic()
 
     with Session(engine) as session:
         log("Loading submissions from database...")
@@ -343,6 +403,11 @@ def compare_codeforces_verdicts(
 
             log(f"[{index}/{len(submissions)}] Running submission {submission_id}")
             reset_submission_for_judge(session, submission_id)
+
+            if kafka_producer:
+                send_submission_to_kafka(submission_id)
+                produced += 1
+                continue
 
             try:
                 if local_runner:
@@ -402,6 +467,10 @@ def compare_codeforces_verdicts(
 
     log()
     log("Summary")
+    if kafka_producer:
+        log(f"  Produced to Kafka: {produced}")
+        return
+
     log(f"  Compared: {checked}")
     log(f"  Matched: {matched}")
     log(f"  Mismatched: {mismatched}")

@@ -5,12 +5,17 @@ import math
 import signal
 import os
 import sys
+import json
 import time
 import threading
 import platform
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
+
+REPO_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_DIR / "judge"))
+
 from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
 from sqlalchemy import update
 from sqlmodel import create_engine, Session, SQLModel, select
@@ -28,15 +33,17 @@ from dotenv import load_dotenv
 # from src.database import SessionDep, create_db_and_tables
 # from src.core.security import verify_access_token, get_current_user
 
-REPO_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(REPO_DIR / "backend" / ".env")
-sys.path.insert(0, str(REPO_DIR / "judge"))
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL must be set in backend/.env")
 DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'").replace("\\&", "&")
 engine = create_engine(DATABASE_URL)
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "submissions")
+KAFKA_CONSUMER_GROUP = os.getenv("KAFKA_CONSUMER_GROUP", "judge-workers")
 
 
 def get_session():
@@ -139,6 +146,62 @@ def add_testcase_result(
     )
 
 
+def submission_id_from_event(event: dict) -> int:
+    submission_id = event.get("submission_id")
+    if submission_id is None and isinstance(event.get("data"), dict):
+        submission_id = event["data"].get("submission_id")
+    if submission_id is None:
+        raise ValueError("Kafka event does not contain submission_id")
+    return int(submission_id)
+
+
+def run_worker():
+    from confluent_kafka import Consumer
+
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
+            "group.id": KAFKA_CONSUMER_GROUP,
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+        }
+    )
+    consumer.subscribe([KAFKA_TOPIC])
+    print(
+        f"Judge worker listening on topic {KAFKA_TOPIC} "
+        f"as group {KAFKA_CONSUMER_GROUP}"
+    )
+
+    try:
+        while True:
+            message = consumer.poll(1.0)
+            if message is None:
+                continue
+            if message.error():
+                print(f"Kafka error: {message.error()}")
+                continue
+
+            try:
+                event = json.loads(message.value().decode("utf-8"))
+                submission_id = submission_id_from_event(event)
+                print(
+                    f"Judging submission {submission_id} "
+                    f"from partition {message.partition()} offset {message.offset()}"
+                )
+                with Session(engine) as session:
+                    result = judge_submission(session, submission_id)
+                    print(f"Finished submission {submission_id}: {result}")
+            except HTTPException as exc:
+                print(
+                    f"Skipped submission event at offset {message.offset()}: "
+                    f"HTTP {exc.status_code} {exc.detail}"
+                )
+            except Exception as exc:
+                print(f"Failed to handle event at offset {message.offset()}: {exc}")
+    finally:
+        consumer.close()
+
+
 @router.post("/runner", status_code=201)
 def judge_submission(
     session: SessionDep,
@@ -158,7 +221,7 @@ def judge_submission(
         source_file.write_text(source_code)
         # compile
         compile_result = subprocess.run(
-            ["g++", "-std=gnu++20", "-O2","-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
+            ["g++", "-std=gnu++20", "-O2", "-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
             capture_output=True,
             text=True,
         )
@@ -444,3 +507,6 @@ def judge_submission(
         )
         return runner_response(message, testcase_results, include_testcase_results)
        
+
+if __name__ == "__main__":
+    run_worker()

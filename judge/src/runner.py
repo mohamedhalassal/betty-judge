@@ -5,7 +5,6 @@ import math
 import signal
 import os
 import sys
-import json
 import time
 import threading
 import socket
@@ -21,6 +20,7 @@ from src.models.problem import Problem
 from src.models.test_case import TestCase
 from src.models.submission import SubmissionStatus
 from dotenv import load_dotenv
+from azure.storage.queue import QueueClient
 
 load_dotenv(REPO_DIR / "backend" / ".env")
 
@@ -30,13 +30,11 @@ if not DATABASE_URL:
 DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'").replace("\\&", "&")
 engine = create_engine(DATABASE_URL)
 
-KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "submissions")
-KAFKA_CONSUMER_GROUP = os.getenv("KAFKA_CONSUMER_GROUP", "judge-workers")
 WORKER_NAME = os.getenv("WORKER_NAME") or socket.gethostname()
-KAFKA_MAX_POLL_INTERVAL_MS = int(
-    os.getenv("KAFKA_MAX_POLL_INTERVAL_MS", "1800000")
-)
+AZURE_QUEUE_NAME = os.getenv("AZURE_QUEUE_NAME", "quickstartqueuesample")
+AZURE_QUEUE_CONNECTION_STRING = os.getenv("AZURE_QUEUE_CONNECTION_STRING")
+if not AZURE_QUEUE_CONNECTION_STRING:
+    raise RuntimeError("AZURE_QUEUE_CONNECTION_STRING must be set in backend/.env")
 
 
 class JudgeSubmissionError(Exception):
@@ -136,15 +134,6 @@ def add_testcase_result(
     )
 
 
-def submission_id_from_event(event: dict) -> int:
-    submission_id = event.get("submission_id")
-    if submission_id is None and isinstance(event.get("data"), dict):
-        submission_id = event["data"].get("submission_id")
-    if submission_id is None:
-        raise ValueError("Kafka event does not contain submission_id")
-    return int(submission_id)
-
-
 def verdict_value(verdict) -> str:
     if verdict is None:
         return "-"
@@ -152,39 +141,25 @@ def verdict_value(verdict) -> str:
 
 
 def run_worker():
-    from confluent_kafka import Consumer
-
-    consumer = Consumer(
-        {
-            "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
-            "group.id": KAFKA_CONSUMER_GROUP,
-            "auto.offset.reset": "earliest",
-            "enable.auto.commit": False,
-            "max.poll.interval.ms": KAFKA_MAX_POLL_INTERVAL_MS,
-        }
+    queue = QueueClient.from_connection_string(
+        AZURE_QUEUE_CONNECTION_STRING,
+        queue_name=AZURE_QUEUE_NAME,
     )
-    consumer.subscribe([KAFKA_TOPIC])
     print(
-        f"Judge worker {WORKER_NAME} listening on topic {KAFKA_TOPIC} "
-        f"as group {KAFKA_CONSUMER_GROUP}",
+        f"Judge worker {WORKER_NAME} listening on queue {AZURE_QUEUE_NAME}",
         flush=True,
     )
 
-    try:
-        while True:
-            message = consumer.poll(1.0)
-            if message is None:
-                continue
-            if message.error():
-                print(f"Kafka error: {message.error()}")
-                continue
+    while True:
+        received_any = False
+        messages = queue.receive_messages(messages_per_page=1, visibility_timeout=600)
+        for message in messages:
+            received_any = True
 
             try:
-                event = json.loads(message.value().decode("utf-8"))
-                submission_id = submission_id_from_event(event)
+                submission_id = int(message.content)
                 print(
-                    f"[{WORKER_NAME}] took submission {submission_id} "
-                    f"partition={message.partition()} offset={message.offset()}",
+                    f"[{WORKER_NAME}] took submission {submission_id}",
                     flush=True,
                 )
                 with Session(engine) as session:
@@ -197,22 +172,21 @@ def run_worker():
                         f"verdict={verdict_value(verdict)}",
                         flush=True,
                     )
-                consumer.commit(message)
+                queue.delete_message(message)
             except JudgeSubmissionError as exc:
                 print(
-                    f"[{WORKER_NAME}] skipped event partition={message.partition()} "
-                    f"offset={message.offset()}: {exc.status_code} {exc.detail}",
+                    f"[{WORKER_NAME}] skipped submission: {exc.status_code} {exc.detail}",
                     flush=True,
                 )
-                consumer.commit(message)
+                queue.delete_message(message)
             except Exception as exc:
                 print(
-                    f"[{WORKER_NAME}] failed event partition={message.partition()} "
-                    f"offset={message.offset()}: {exc}",
+                    f"[{WORKER_NAME}] failed submission message {message.content}: {exc}",
                     flush=True,
                 )
-    finally:
-        consumer.close()
+
+        if not received_any:
+            time.sleep(1)
 
 
 def judge_submission(

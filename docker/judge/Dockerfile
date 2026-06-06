@@ -8,12 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     time \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir \
-    confluent-kafka \
+    azure-storage-queue \
+    azure-identity \
     sqlmodel \
     psycopg2-binary \
     python-dotenv \
     python-jose\
     pytest
+
 
 COPY judge/ .
 RUN rm -f src/models && mkdir -p src/models

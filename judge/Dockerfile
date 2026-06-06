@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
     
 RUN pip install --no-cache-dir \
-    confluent-kafka \
+    azure-storage-queue \
+    azure-identity \
     sqlmodel \
     psycopg2-binary \
     python-dotenv \

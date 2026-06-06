@@ -1,13 +1,11 @@
-from fastapi.testclient import TestClient
-from sqlmodel import SQLModel, Session, create_engine, select
+from sqlmodel import SQLModel, Session, create_engine
 from sqlmodel.pool import StaticPool
 from src.models.submission import Submission
 from src.models.user import User
 from src.models.problem import Problem
 from src.models.test_case import TestCase
 from src.models.submission import SubmissionStatus
-from src.runner import add_testcase_result, get_session
-from main import app
+from src.runner import JudgeSubmissionError, add_testcase_result, judge_submission
 
 
 engine = create_engine(
@@ -17,22 +15,28 @@ engine = create_engine(
 )
 
 
-def get_test_session():
-    with Session(engine) as session:
-        yield session
-
-
-client = TestClient(app)
-
-
 def setup_function():
     SQLModel.metadata.create_all(engine)
-    app.dependency_overrides[get_session] = get_test_session
 
 
 def teardown_function():
-    app.dependency_overrides.clear()
     SQLModel.metadata.drop_all(engine)
+
+
+class JudgeResult:
+    def __init__(self, status_code, payload):
+        self.status_code = status_code
+        self.payload = payload
+
+    def json(self):
+        return self.payload
+
+
+def run_judge(session: Session, submission_id: int):
+    try:
+        return JudgeResult(201, judge_submission(session, submission_id))
+    except JudgeSubmissionError as exc:
+        return JudgeResult(exc.status_code, {"detail": exc.detail})
 
 
 def create_test_user(session):

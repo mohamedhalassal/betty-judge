@@ -33,11 +33,12 @@ engine = create_engine(DATABASE_URL)
 from confluent_kafka import Producer #pyright: ignore
 from confluent_kafka.admin import AdminClient, NewTopic  # pyright: ignore
 
-KAFKA_TOPIC = "submissions"
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "submissions")
 KAFKA_PARTITIONS = 8
 
 producer_config = {
-    "bootstrap.servers": "localhost:9092",
+    "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
     "acks": "all",
 }
 
@@ -49,9 +50,7 @@ def delivery_report(err, msg):
     else:
         print(f"✅ Delivered to {msg.topic()} : partition {msg.partition()} : at offset {msg.offset()}")
 
-admin = AdminClient({
-    "bootstrap.servers": "localhost:9092"
-})
+admin = AdminClient({"bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS})
 
 
 def create_submissions_topic():
@@ -474,7 +473,6 @@ def compare_codeforces_verdicts(
     log(f"  Compared: {checked}")
     log(f"  Matched: {matched}")
     log(f"  Mismatched: {mismatched}")
-    log(f"  Matched - mismatched: {matched - mismatched}")
     log(f"  Ignored local TLE: {ignored_local_tle}")
     log(f"  Failed to run: {failed}")
 

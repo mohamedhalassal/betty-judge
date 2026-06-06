@@ -25,4 +25,3 @@ class Submission(SQLModel, table=True):
     execution_time: int | None = None
     execution_memory: int | None = None 
     verdict : SubmissionStatus = Field(default=SubmissionStatus.IN_QUEUE)
-

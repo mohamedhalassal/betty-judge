@@ -8,30 +8,19 @@ import sys
 import json
 import time
 import threading
-import platform
-from datetime import datetime
+import socket
 from pathlib import Path
-from typing import Annotated
 
 REPO_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_DIR / "judge"))
 
-from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
 from sqlalchemy import update
-from sqlmodel import create_engine, Session, SQLModel, select
+from sqlmodel import create_engine, Session, select
 from src.models.submission import Submission
 from src.models.problem import Problem
 from src.models.test_case import TestCase
 from src.models.submission import SubmissionStatus
 from dotenv import load_dotenv
-
-# from src.models.problem import Problem
-# from src.models.user import User
-# from src.models.test_case import TestCase
-# from src.schemas.submission import SubmissionCreate, SubmissionResponse
-# from src.models.submission import Submission
-# from src.database import SessionDep, create_db_and_tables
-# from src.core.security import verify_access_token, get_current_user
 
 load_dotenv(REPO_DIR / "backend" / ".env")
 
@@ -44,16 +33,17 @@ engine = create_engine(DATABASE_URL)
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "submissions")
 KAFKA_CONSUMER_GROUP = os.getenv("KAFKA_CONSUMER_GROUP", "judge-workers")
+WORKER_NAME = os.getenv("WORKER_NAME") or socket.gethostname()
+KAFKA_MAX_POLL_INTERVAL_MS = int(
+    os.getenv("KAFKA_MAX_POLL_INTERVAL_MS", "1800000")
+)
 
 
-def get_session():
-    with Session(engine) as session:
-        yield session
-
-
-SessionDep = Annotated[Session, Depends(get_session)]
-
-router = APIRouter()
+class JudgeSubmissionError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(detail)
 
 
 def normalize_source_code(source_code: str) -> str:
@@ -76,11 +66,11 @@ def validation(session: Session, submission_id: int):
         select(Submission).where(Submission.id == submission_id)
     ).first()
     if not submission:
-        raise HTTPException(status_code=404, detail="Submission not found")
+        raise JudgeSubmissionError(status_code=404, detail="Submission not found")
 
     # Check if the submission verdict is "in queue"
     if submission.verdict != SubmissionStatus.IN_QUEUE:
-        raise HTTPException(
+        raise JudgeSubmissionError(
             status_code=400, detail="Submission verdict is not in queue"
         )
 
@@ -89,7 +79,7 @@ def validation(session: Session, submission_id: int):
         select(Problem).where(Problem.id == submission.problem_id)
     ).first()
     if not problem:
-        raise HTTPException(status_code=404, detail="Problem not found")
+        raise JudgeSubmissionError(status_code=404, detail="Problem not found")
     return submission, problem
 
 
@@ -155,6 +145,12 @@ def submission_id_from_event(event: dict) -> int:
     return int(submission_id)
 
 
+def verdict_value(verdict) -> str:
+    if verdict is None:
+        return "-"
+    return getattr(verdict, "value", str(verdict))
+
+
 def run_worker():
     from confluent_kafka import Consumer
 
@@ -164,12 +160,14 @@ def run_worker():
             "group.id": KAFKA_CONSUMER_GROUP,
             "auto.offset.reset": "earliest",
             "enable.auto.commit": False,
+            "max.poll.interval.ms": KAFKA_MAX_POLL_INTERVAL_MS,
         }
     )
     consumer.subscribe([KAFKA_TOPIC])
     print(
-        f"Judge worker listening on topic {KAFKA_TOPIC} "
-        f"as group {KAFKA_CONSUMER_GROUP}"
+        f"Judge worker {WORKER_NAME} listening on topic {KAFKA_TOPIC} "
+        f"as group {KAFKA_CONSUMER_GROUP}",
+        flush=True,
     )
 
     try:
@@ -185,26 +183,40 @@ def run_worker():
                 event = json.loads(message.value().decode("utf-8"))
                 submission_id = submission_id_from_event(event)
                 print(
-                    f"Judging submission {submission_id} "
-                    f"from partition {message.partition()} offset {message.offset()}"
+                    f"[{WORKER_NAME}] took submission {submission_id} "
+                    f"partition={message.partition()} offset={message.offset()}",
+                    flush=True,
                 )
                 with Session(engine) as session:
-                    result = judge_submission(session, submission_id)
-                    print(f"Finished submission {submission_id}: {result}")
-            except HTTPException as exc:
+                    judge_submission(session, submission_id)
+                    session.expire_all()
+                    judged_submission = session.get(Submission, submission_id)
+                    verdict = judged_submission.verdict if judged_submission else None
+                    print(
+                        f"[{WORKER_NAME}] finished submission {submission_id} "
+                        f"verdict={verdict_value(verdict)}",
+                        flush=True,
+                    )
+                consumer.commit(message)
+            except JudgeSubmissionError as exc:
                 print(
-                    f"Skipped submission event at offset {message.offset()}: "
-                    f"HTTP {exc.status_code} {exc.detail}"
+                    f"[{WORKER_NAME}] skipped event partition={message.partition()} "
+                    f"offset={message.offset()}: {exc.status_code} {exc.detail}",
+                    flush=True,
                 )
+                consumer.commit(message)
             except Exception as exc:
-                print(f"Failed to handle event at offset {message.offset()}: {exc}")
+                print(
+                    f"[{WORKER_NAME}] failed event partition={message.partition()} "
+                    f"offset={message.offset()}: {exc}",
+                    flush=True,
+                )
     finally:
         consumer.close()
 
 
-@router.post("/runner", status_code=201)
 def judge_submission(
-    session: SessionDep,
+    session: Session,
     submission_id: int,
     include_testcase_results: bool = False,
 ):
@@ -221,7 +233,15 @@ def judge_submission(
         source_file.write_text(source_code)
         # compile
         compile_result = subprocess.run(
-            ["g++", "-std=gnu++20", "-O2", "-DONLINE_JUDGE", str(source_file), "-o", str(exe_file)],
+            [
+                "g++",
+                "-std=gnu++20",
+                "-O2",
+                "-DONLINE_JUDGE",
+                str(source_file),
+                "-o",
+                str(exe_file),
+            ],
             capture_output=True,
             text=True,
         )

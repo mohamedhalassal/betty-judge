@@ -1,3 +1,4 @@
+from datetime import time
 from typing import Annotated
 from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
 from sqlmodel import select
@@ -28,7 +29,8 @@ def read_problems(session: SessionDep, #pyright: ignore,
 async def create_problem(problem: Annotated[ProblemCreate, Body(embed=False)], session: SessionDep,
 current_user: Annotated[User, Depends(get_current_user)]):
     problem_db = Problem(name=problem.name,statement=problem.statement,
-    created_by=current_user.id,solution=problem.solution,checker_code=problem.checker_code);    #pyright: ignore
+    created_by=current_user.id,solution=problem.solution,checker_code=problem.checker_code,
+    time_limit=problem.time_limit,memory_limit=problem.memory_limit);    #pyright: ignore
     session.add(problem_db)#pyright: ignore
     session.commit()                    #pyright: ignore
     session.refresh(problem_db)#pyright: ignore

@@ -1,0 +1,30 @@
+import subprocess
+import resource
+import os
+
+
+proc = subprocess.Popen(
+    ["python3", "main.py"],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+    preexec_fn=resource.setrlimit(resource.RLIMIT_CPU, (2, 3))
+)
+
+# Send input, then close stdin so main.py knows input is finished
+proc.stdin.write("hello\n")
+proc.stdin.close()
+
+# Read output before wait4
+stdout = proc.stdout.read()
+stderr = proc.stderr.read()
+
+pid, status, usage = os.wait4(proc.pid, 0)
+proc.returncode = os.waitstatus_to_exitcode(status)
+
+print("stdout:", stdout)
+print("stderr:", stderr)
+print("cpu:", usage.ru_utime + usage.ru_stime)
+print("memory:", usage.ru_maxrss)
+print("return code:", proc.returncode)

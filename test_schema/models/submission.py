@@ -22,6 +22,12 @@ class Submission(SQLModel, table=True):
     problem_id: int = Field(foreign_key="problems.id")
     source_code: str
     submitted_at: datetime = Field(default_factory=utc_now)
-    execution_time: int | None = None
-    execution_memory: int | None = None 
+    execution_time: int| None = None
+    execution_memory: int |None = None
     verdict : SubmissionStatus = Field(default=SubmissionStatus.IN_QUEUE)
+    codeforces_submission_id: int
+    codeforces_verdict: SubmissionStatus = Field(default=SubmissionStatus.IN_QUEUE)
+    codeforces_time_ms: int 
+    codeforces_memory_bytes: int 
+    codeforces_failed_test: int | None = None
+    local_failed_test: int | None = None

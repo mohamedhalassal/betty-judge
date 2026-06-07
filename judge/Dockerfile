@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     coreutils \
     time \
     && rm -rf /var/lib/apt/lists/*
+    
 RUN pip install --no-cache-dir \
     azure-storage-queue \
     azure-identity \
@@ -16,8 +17,7 @@ RUN pip install --no-cache-dir \
     python-jose\
     pytest
 
-
-COPY judge/ .
+COPY . .
 RUN rm -f src/models && mkdir -p src/models
-COPY backend/src/models/ ./src/models/
+COPY ../backend/src/models/ ./src/models/
 CMD ["python", "main.py"]

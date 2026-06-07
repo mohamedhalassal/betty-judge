@@ -1,106 +1,512 @@
 import subprocess
 import tempfile
+import resource
+import math
+import signal
 import os
-from datetime import datetime
+import sys
+import time
+import threading
+import socket
 from pathlib import Path
-from typing import Annotated
-from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter
+
+REPO_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_DIR / "judge"))
+
 from sqlalchemy import update
-from sqlmodel import create_engine, Session, SQLModel, select
+from sqlmodel import create_engine, Session, select
 from src.models.submission import Submission
 from src.models.problem import Problem
-# from src.models.problem import Problem
-# from src.models.user import User
-# from src.models.test_case import TestCase
-# from src.schemas.submission import SubmissionCreate, SubmissionResponse
-# from src.models.submission import Submission
-# from src.database import SessionDep, create_db_and_tables
-# from src.core.security import verify_access_token, get_current_user
+from src.models.test_case import TestCase
+from src.models.submission import SubmissionStatus
+from dotenv import load_dotenv
+from azure.storage.queue import QueueClient
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+load_dotenv(REPO_DIR / "backend" / ".env")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL must be set in backend/.env")
+DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'").replace("\\&", "&")
 engine = create_engine(DATABASE_URL)
-def get_session():
-    with Session(engine) as session:
-        yield session
 
-SessionDep = Annotated[Session, Depends(get_session)]
-
-router = APIRouter()
-
-@router.post("/runner", status_code=201)
-def judge_submission(session: SessionDep, submission_id: int):
-      # Check if the submission exists
-      submission = session.exec(select(Submission).where(Submission.id == submission_id)).first()
-      if not submission:
-          raise HTTPException(status_code=404, detail="Submission not found")
-
-      # Check if the problem exists
-      problem_id = submission.problem_id
-      problem = session.exec(select(Problem).where(Problem.id == problem_id)).first()
-      if not problem:
-          raise HTTPException(status_code=404, detail="Problem not found")
-      result = session.exec(
-          update(Submission).values(status="playing")
-      )
-
-      session.commit()
-      # compile the code
-      with tempfile.TemporaryDirectory() as temp_dir:
-         temp_path = Path(temp_dir)
-         source_file = temp_path / "main.cpp"
-         exe_file = temp_path / "main"
-         # write given source code to file
-         source_code = submission.source_code
-         source_file.write_text(source_code)
-         # compile
-         compile_result = subprocess.run(
-             ["g++", str(source_file), "-o", str(exe_file)],
-             capture_output=True,
-           text=True
-         )
-        # todo : return responsesubmission with compile error
-         if compile_result.returncode != 0:
-             raise HTTPException(status_code=400, detail=f"Compilation failed: {compile_result.stderr}")
-         return compile_result.returncode
-
-#         # get test cases for the problem
-#         test_cases = session.exec(select(TestCase).where(TestCase.problem_id == submissionCreate.problem_id)).all()
-
-#         # run the executable with each test case and compare output
-#         for test_case in test_cases:
-#             # run the executable with the test case input
-#             run_result = subprocess.run(
-#                 [str(exe_file)],
-#                 input=test_case.input_data,
-#                 capture_output=True,
-#                 text=True,
-#                 # todo: add time limit and memory limit for the problem
-#                 timeout=5  # set a timeout for execution
-#             )
-
-#             # check for runtime errors
-#             if run_result.returncode != 0:
-#                 raise HTTPException(status_code=400, detail=f"Runtime error: {run_result.stderr}")
-
-#             # todo: measure execution time and include it in the response
-#             # todo: handle time limit exceeded case and memory limit exceeded case
-#             # todo : use checker_code and handle exceptions instead of manually checking returncode
-#             # todo : set test_case number for test_case
-
-#             # compare output with expected output
-#             if run_result.stdout.strip() != test_case.expected_output.strip():
-#                     return SubmissionResponse(
-#                         problem_id=submissionCreate.problem_id,
-#                         status=f"Wrong Answer on test: {test_case.id}",
-#                         execution_time=None, 
-#                         submitted_at=datetime.now() #
-#                    )
-#     return SubmissionResponse(
-#         problem_id=submissionCreate.problem_id,
-#         status="Accepted",
-#         execution_time=None, 
-#         submitted_at=datetime.now()
-#     )
+WORKER_NAME = os.getenv("WORKER_NAME") or socket.gethostname()
+AZURE_QUEUE_NAME = os.getenv("AZURE_QUEUE_NAME", "quickstartqueuesample")
+AZURE_QUEUE_CONNECTION_STRING = os.getenv("AZURE_QUEUE_CONNECTION_STRING")
+if not AZURE_QUEUE_CONNECTION_STRING:
+    raise RuntimeError("AZURE_QUEUE_CONNECTION_STRING must be set in backend/.env")
 
 
-            
+class JudgeSubmissionError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(detail)
+
+
+def normalize_source_code(source_code: str) -> str:
+    return (
+        source_code.replace("\ufeff", "")
+        .replace("\u00a0", " ")
+        .replace("\u2007", " ")
+        .replace("\u202f", " ")
+        .replace("\u200b", "")
+        .replace("\u200c", "")
+        .replace("\u200d", "")
+        .replace("\u200e", "")
+        .replace("\u200f", "")
+    )
+
+
+def validation(session: Session, submission_id: int):
+    # Check if the submission exists
+    submission = session.exec(
+        select(Submission).where(Submission.id == submission_id)
+    ).first()
+    if not submission:
+        raise JudgeSubmissionError(status_code=404, detail="Submission not found")
+
+    # Check if the submission verdict is "in queue"
+    if submission.verdict != SubmissionStatus.IN_QUEUE:
+        message = (
+            f"Submission {submission_id} verdict is not in queue: "
+            f"{verdict_value(submission.verdict)}"
+        )
+        print(message, flush=True)
+        return None, None
+
+    # Check if the problem exists
+    problem = session.exec(
+        select(Problem).where(Problem.id == submission.problem_id)
+    ).first()
+    if not problem:
+        raise JudgeSubmissionError(status_code=404, detail="Problem not found")
+    return submission, problem
+
+
+def finish_submission(
+    session: Session,
+    submission_id: int,
+    verdict: SubmissionStatus,
+    message: str,
+    execution_time: float | None = None,
+    execution_memory: float | None = None,
+):
+    session.exec(
+        update(Submission)
+        .values(
+            verdict=verdict,
+            execution_time=execution_time,
+            execution_memory=execution_memory,
+        )
+        .where(
+            (Submission.id == submission_id)
+            & (Submission.verdict == SubmissionStatus.IN_QUEUE)
+        )
+    )
+    session.commit()
+    return message
+
+
+def max_rss_to_mb(max_rss: int) -> float:
+    return max_rss / 1024
+
+
+def runner_response(message: str, testcases: list[dict], include_testcase_results: bool):
+    if not include_testcase_results:
+        return message
+    return {"message": message, "testcases": testcases}
+
+
+def add_testcase_result(
+    testcases: list[dict],
+    number: int,
+    test_case: TestCase,
+    status: str,
+    time_ms: float,
+    memory_mb: float,
+):
+    testcases.append(
+        {
+            "id": test_case.id,
+            "number": number,
+            "status": status,
+            "time_ms": time_ms,
+            "memory_mb": memory_mb,
+        }
+    )
+
+
+def verdict_value(verdict) -> str:
+    if verdict is None:
+        return "-"
+    return getattr(verdict, "value", str(verdict))
+
+
+def run_worker():
+    queue = QueueClient.from_connection_string(
+        AZURE_QUEUE_CONNECTION_STRING,
+        queue_name=AZURE_QUEUE_NAME,
+    )
+    print(
+        f"Judge worker {WORKER_NAME} listening on queue {AZURE_QUEUE_NAME}",
+        flush=True,
+    )
+
+    while True:
+        received_any = False
+        messages = queue.receive_messages(messages_per_page=1, visibility_timeout=300)
+        for message in messages:
+            received_any = True
+
+            try:
+                submission_id = int(message.content)
+                print(
+                    f"[{WORKER_NAME}] took submission {submission_id}",
+                    flush=True,
+                )
+                with Session(engine) as session:
+                    judge_submission(session, submission_id)
+                    session.expire_all()
+                    judged_submission = session.get(Submission, submission_id)
+                    verdict = judged_submission.verdict if judged_submission else None
+                    print(
+                        f"[{WORKER_NAME}] finished submission {submission_id} "
+                        f"verdict={verdict_value(verdict)}",
+                        flush=True,
+                    )
+                queue.delete_message(message)
+            except JudgeSubmissionError as exc:
+                print(
+                    f"[{WORKER_NAME}] skipped submission: {exc.status_code} {exc.detail}",
+                    flush=True,
+                )
+                queue.delete_message(message)
+            except Exception as exc:
+                print(
+                    f"[{WORKER_NAME}] failed submission message {message.content}: {exc}",
+                    flush=True,
+                )
+
+        if not received_any:
+            time.sleep(1)
+
+
+def judge_submission(
+    session: Session,
+    submission_id: int,
+    include_testcase_results: bool = False,
+):
+    submission, problem = validation(session, submission_id)
+    testcase_results = []
+    if submission is None:
+        message = "Submission verdict is not in queue"
+        return runner_response(message, testcase_results, include_testcase_results)
+
+    # compile the code
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        source_file = temp_path / "main.cpp"
+        exe_file = temp_path / "main"
+        # write given source code to file
+        source_code = normalize_source_code(submission.source_code)
+        source_file.write_text(source_code)
+        # compile
+        compile_result = subprocess.run(
+            [
+                "g++",
+                "-std=gnu++20",
+                "-O2",
+                "-DONLINE_JUDGE",
+                str(source_file),
+                "-o",
+                str(exe_file),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        # todo : what should i return ?
+
+        # compilation error
+        if compile_result.returncode != 0:
+            message = f"Compile error: {compile_result.stderr}"
+            finish_submission(
+                session,
+                submission_id,
+                SubmissionStatus.COMPILE_ERROR,
+                message,
+                execution_time=0,
+                execution_memory=0,
+            )
+            return runner_response(message, testcase_results, include_testcase_results)
+        execution_time = 0
+        memory_usage = 0
+
+        # run the executable with each test case and compare output
+        cpu_limit_seconds = max(1, math.ceil(problem.time_limit / 1000))
+
+        maxMemory = (
+            problem.memory_limit * 1024 * 1024 * 5
+        )  # Convert MB to bytes for RLIMIT_AS
+
+        def limit_resources():
+            try:
+                resource.setrlimit(
+                    resource.RLIMIT_CPU, (cpu_limit_seconds, cpu_limit_seconds + 2)
+                )
+            except (OSError, ValueError):
+                pass
+
+            try:
+                resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
+            except (OSError, ValueError):
+                pass
+
+        test_case_number = 0
+        last_test_case_id = 0
+
+        while True:
+            test_case = session.exec(
+                select(TestCase)
+                .where(TestCase.problem_id == submission.problem_id)
+                .where(TestCase.id > last_test_case_id)
+                .order_by(TestCase.id)
+                .limit(1)
+            ).first()
+            if test_case is None:
+                break
+            test_case_number += 1
+            last_test_case_id = test_case.id
+
+            # run the executable with the test case input
+            process = subprocess.Popen(
+                [str(exe_file)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                preexec_fn=limit_resources,
+                start_new_session=True,
+            )
+
+            # set a wall clock time limit
+            wall_limit_seconds = cpu_limit_seconds * 3 + 5
+            wall_timed_out = False
+
+            def kill_process():
+                nonlocal wall_timed_out
+                wall_timed_out = True
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+            timer = threading.Timer(wall_limit_seconds, kill_process)
+            timer.start()
+
+            try:
+                try:
+                    process.stdin.write(test_case.input_data)
+                except BrokenPipeError:
+                    pass
+                finally:
+                    try:
+                        process.stdin.close()
+                    except BrokenPipeError:
+                        pass
+            except OSError:
+                pass
+
+            try:
+                pid, status, usage = os.wait4(process.pid, 0)
+            finally:
+                timer.cancel()
+
+            process.returncode = os.waitstatus_to_exitcode(status)
+            cpu_time = int((usage.ru_utime + usage.ru_stime) * 1000)
+            memory_mb = int(max_rss_to_mb(usage.ru_maxrss))
+            current_execution_time = max(execution_time, cpu_time)
+            current_memory_usage = max(memory_usage, memory_mb)
+
+            if wall_timed_out:
+                message = f"Idleness Limit Exceeded on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.IDLENESS_LIMIT_EXCEEDED.value,
+                    cpu_time,
+                    memory_mb,
+                )
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.IDLENESS_LIMIT_EXCEEDED,
+                    message,
+                    execution_time=current_execution_time,
+                    execution_memory=current_memory_usage,
+                )
+                return runner_response(message, testcase_results, include_testcase_results)  
+            # time limit exceeded and runtime error and memory limit exceeded cases after signal
+            if process.returncode != 0:
+                sig = -process.returncode
+                # time limit exceeded case
+                if sig == signal.SIGXCPU or (
+                    sig == signal.SIGKILL
+                    and usage.ru_utime + usage.ru_stime >= cpu_limit_seconds
+                ):
+                    message = f"Time Limit Exceeded on test: {test_case_number}"
+                    add_testcase_result(
+                        testcase_results,
+                        test_case_number,
+                        test_case,
+                        SubmissionStatus.TIME_LIMIT_EXCEEDED.value,
+                        cpu_time,
+                        memory_mb,
+                    )
+                    finish_submission(
+                        session,
+                        submission_id,
+                        SubmissionStatus.TIME_LIMIT_EXCEEDED,
+                        message,
+                        execution_time=problem.time_limit,
+                        execution_memory=current_memory_usage,
+                    )
+                    return runner_response(message, testcase_results, include_testcase_results)
+                stderr_lower = process.stderr.read().lower()
+
+                #  clear MLE cases
+                if (
+                    "bad_alloc" in stderr_lower
+                    or "cannot allocate memory" in stderr_lower
+                    or "out of memory" in stderr_lower
+                ):
+                    message = f"Memory Limit Exceeded on test: {test_case_number}"
+                    add_testcase_result(
+                        testcase_results,
+                        test_case_number,
+                        test_case,
+                        SubmissionStatus.MEMORY_LIMIT_EXCEEDED.value,
+                        cpu_time,
+                        memory_mb,
+                    )
+                    finish_submission(
+                        session,
+                        submission_id,
+                        SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+                        message,
+                        execution_time=current_execution_time,
+                        execution_memory=problem.memory_limit,
+                    )
+                    return runner_response(message, testcase_results, include_testcase_results)
+                #  maybe MLE, but conflicts with RE => say RE
+                message = f"Runtime Error on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.RUNTIME_ERROR.value,
+                    cpu_time,
+                    memory_mb,
+                )
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.RUNTIME_ERROR,
+                    message,
+                    execution_time=current_execution_time,
+                    execution_memory=current_memory_usage,
+                )
+                return runner_response(message, testcase_results, include_testcase_results)
+            # measure execution time and memory usage
+            memory_usage = current_memory_usage
+            execution_time = current_execution_time
+
+            if memory_usage > problem.memory_limit:
+                message = f"Memory Limit Exceeded on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.MEMORY_LIMIT_EXCEEDED.value,
+                    cpu_time,
+                    memory_mb,
+                )
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+                    message,
+                    execution_time=execution_time,
+                    execution_memory=problem.memory_limit,
+                )
+                return runner_response(message, testcase_results, include_testcase_results)
+
+            # check time limit exceeded again
+            if execution_time > problem.time_limit:
+                message = f"Time Limit Exceeded on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.TIME_LIMIT_EXCEEDED.value,
+                    cpu_time,
+                    memory_mb,
+                )
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.TIME_LIMIT_EXCEEDED,
+                    message,
+                    execution_time=problem.time_limit,
+                    execution_memory=memory_usage,
+                )
+                return runner_response(message, testcase_results, include_testcase_results)
+            # todo : use checker_code and handle exceptions instead of manually checking return output and expected output
+            # todo : set test_case number for test_case
+
+            # compare output with expected output
+            stdout = process.stdout.read()
+            if stdout.strip() != test_case.expected_output.strip():
+                message = f"Wrong Answer on test: {test_case_number}"
+                add_testcase_result(
+                    testcase_results,
+                    test_case_number,
+                    test_case,
+                    SubmissionStatus.WRONG_ANSWER.value,
+                    cpu_time,
+                    memory_mb,
+                )
+                finish_submission(
+                    session,
+                    submission_id,
+                    SubmissionStatus.WRONG_ANSWER,
+                    message,
+                    execution_time=execution_time,
+                    execution_memory=memory_usage,
+                )
+                return runner_response(message, testcase_results, include_testcase_results)
+            add_testcase_result(
+                testcase_results,
+                test_case_number,
+                test_case,
+                "passed",
+                cpu_time,
+                memory_mb,
+            )
+
+        # if all test cases pass, update submission verdict to "accepted"
+        message = "Accepted"
+        finish_submission(
+            session,
+            submission_id,
+            SubmissionStatus.ACCEPTED,
+            message,
+            execution_time=execution_time,
+            execution_memory=memory_usage,
+        )
+        return runner_response(message, testcase_results, include_testcase_results)
+       
+
+if __name__ == "__main__":
+    run_worker()

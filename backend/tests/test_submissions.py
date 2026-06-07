@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine
 from sqlmodel.pool import StaticPool
 
+from src.api import submissions
 from main import app
 from src.database import get_session
 from src.models.user import User
@@ -120,7 +121,13 @@ def test_create_and_get_my_submissions():
     assert data[0]["source_code"] == "print('user1')"
 
 
-def test_create_submission():
+def test_create_submission(monkeypatch):
+
+    monkeypatch.setattr(
+        submissions,
+        "send_submission",
+        lambda submission_id: None
+    )
 
     with Session(engine) as session:
 
@@ -404,3 +411,33 @@ def test_filter_submissions_by_username_and_verdict():
     assert data[0]["source_code"] == "accepted code"
 
     assert data[0]["verdict"] == "accepted"
+    
+def test_create_submission_enqueues_message(monkeypatch):
+
+    called = []
+
+    monkeypatch.setattr(
+        submissions,
+        "send_submission",
+        lambda submission_id: called.append(submission_id)
+    )
+
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    response = client.post(
+        "/submit",
+        json={
+            "problem_id": problem.id,
+            "source_code": "print(123)"
+        },
+    )
+
+    assert response.status_code == 201
+
+    assert len(called) == 1
+
+    assert called[0] == response.json()["id"]

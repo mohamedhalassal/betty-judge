@@ -261,6 +261,11 @@ def judge_submission(
                 resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
             except (OSError, ValueError):
                 pass
+                stack_limit = 256 * 1024 * 1024  # 256 MB
+                try:
+                    resource.setrlimit(resource.RLIMIT_STACK, (stack_limit, stack_limit))
+                except (OSError, ValueError):
+                     pass
 
         test_case_number = 0
         last_test_case_id = 0

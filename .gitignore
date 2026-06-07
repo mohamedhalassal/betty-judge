@@ -10,3 +10,4 @@ backend/real-chrome-codeforces-profile/
 node_modules/
 test_schema/click_CLI/compare_codeforces_verdicts_CLI.py
 .pycache-check
+.vercel

@@ -19,55 +19,43 @@ export function formatRelativeTime(date: string | Date): string {
 }
 
 export function formatExecutionTime(ms: number | null | undefined): string {
-  if (ms == null) return "—";
+  if (ms == null) return "\u2014";
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
 export function formatMemory(kb: number | null | undefined): string {
-  if (kb == null) return "—";
+  if (kb == null) return "\u2014";
   if (kb < 1024) return `${kb} KB`;
   return `${(kb / 1024).toFixed(1)} MB`;
 }
 
 export function getVerdictColor(status: string): string {
   const colors: Record<string, string> = {
-    "Accepted": "text-success",
-    "Wrong Answer": "text-destructive",
-    "Time Limit Exceeded": "text-warning",
-    "Runtime Error": "text-destructive",
-    "Compilation Error": "text-warning",
-    "Memory Limit Exceeded": "text-warning",
-    "Pending": "text-foreground-muted",
-    "Running": "text-info",
+    accepted: "text-success",
+    wrong_answer: "text-destructive",
+    time_limit_exceeded: "text-warning",
+    in_queue: "text-foreground-muted",
   };
   return colors[status] || "text-foreground-muted";
 }
 
 export function getVerdictBgColor(status: string): string {
   const colors: Record<string, string> = {
-    "Accepted": "bg-success-muted",
-    "Wrong Answer": "bg-destructive-muted",
-    "Time Limit Exceeded": "bg-warning-muted",
-    "Runtime Error": "bg-destructive-muted",
-    "Compilation Error": "bg-warning-muted",
-    "Memory Limit Exceeded": "bg-warning-muted",
-    "Pending": "bg-card-elevated",
-    "Running": "bg-info-muted",
+    accepted: "bg-success-muted",
+    wrong_answer: "bg-destructive-muted",
+    time_limit_exceeded: "bg-warning-muted",
+    in_queue: "bg-card-elevated",
   };
   return colors[status] || "bg-card-elevated";
 }
 
 export function getVerdictShort(status: string): string {
   const shorts: Record<string, string> = {
-    "Accepted": "AC",
-    "Wrong Answer": "WA",
-    "Time Limit Exceeded": "TLE",
-    "Runtime Error": "RE",
-    "Compilation Error": "CE",
-    "Memory Limit Exceeded": "MLE",
-    "Pending": "...",
-    "Running": "...",
+    accepted: "AC",
+    wrong_answer: "WA",
+    time_limit_exceeded: "TLE",
+    in_queue: "...",
   };
   return shorts[status] || status;
 }

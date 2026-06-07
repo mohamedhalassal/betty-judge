@@ -9,7 +9,6 @@ import {
   Users,
   ArrowRight,
   Terminal,
-  Timer,
   Globe,
   ChevronRight,
 } from "lucide-react";

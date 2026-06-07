@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { problemsApi } from "@/lib/api/problems";
-import type { ProblemFilters } from "@/lib/types";
 
-export function useProblems(filters?: ProblemFilters) {
+export function useProblems(search?: string) {
   return useQuery({
-    queryKey: ["problems", filters],
-    queryFn: () => problemsApi.getAll(filters),
+    queryKey: ["problems", search],
+    queryFn: () => problemsApi.getAll(search),
     staleTime: 30 * 1000,
   });
 }

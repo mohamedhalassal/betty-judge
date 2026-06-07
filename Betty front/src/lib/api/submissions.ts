@@ -1,8 +1,5 @@
 import apiClient from "./client";
-import type { components } from "@/lib/types/api-schema";
-
-type SubmissionResponse = components["schemas"]["SubmissionResponse"];
-type SubmissionCreate = components["schemas"]["SubmissionCreate"];
+import type { SubmissionResponse, SubmissionCreate, SubmissionStatus } from "@/lib/types";
 
 export const submissionsApi = {
   submit: async (data: SubmissionCreate) => {
@@ -20,23 +17,18 @@ export const submissionsApi = {
     size?: number;
     problem_id?: number;
     username?: string;
-    verdict?: components["schemas"]["SubmissionStatus"];
+    verdict?: SubmissionStatus;
   }) => {
-    const res = await apiClient.get<SubmissionResponse[]>("/submissions", {
-      params,
-    });
+    const res = await apiClient.get<SubmissionResponse[]>("/submissions", { params });
     return res.data;
   },
 
   getMySubmissions: async (params?: {
     page?: number;
     size?: number;
-    verdict?: components["schemas"]["SubmissionStatus"];
+    verdict?: SubmissionStatus;
   }) => {
-    const res = await apiClient.get<SubmissionResponse[]>("/my-submissions", {
-      params,
-    });
+    const res = await apiClient.get<SubmissionResponse[]>("/my-submissions", { params });
     return res.data;
   },
 };
-

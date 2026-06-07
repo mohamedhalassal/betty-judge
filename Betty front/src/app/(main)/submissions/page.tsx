@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Search, Filter } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
@@ -11,19 +11,17 @@ import { VerdictBadge } from "@/components/submissions/verdict-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { formatRelativeTime, formatExecutionTime, formatMemory } from "@/lib/utils";
+import { formatRelativeTime, formatExecutionTime } from "@/lib/utils";
 import { useSubmissions } from "@/lib/hooks/use-submissions";
-import type { components } from "@/lib/types/api-schema";
-
-type SubmissionStatus = components["schemas"]["SubmissionStatus"] | "all";
+import type { SubmissionStatus } from "@/lib/types";
 
 export default function SubmissionsPage() {
-  const [statusFilter, setStatusFilter] = useState<SubmissionStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<SubmissionStatus | "all">("all");
   const [usernameFilter, setUsernameFilter] = useState("");
   const [problemIdFilter, setProblemIdFilter] = useState("");
 
   const filterParams = {
-    verdict: statusFilter !== "all" ? statusFilter as components["schemas"]["SubmissionStatus"] : undefined,
+    verdict: statusFilter !== "all" ? statusFilter as SubmissionStatus : undefined,
     username: usernameFilter || undefined,
     problem_id: problemIdFilter ? parseInt(problemIdFilter, 10) : undefined,
   };
@@ -37,7 +35,6 @@ export default function SubmissionsPage() {
         description="View system-wide submissions"
       />
 
-      {/* Filters */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -50,7 +47,7 @@ export default function SubmissionsPage() {
               key={s}
               size="sm"
               variant={statusFilter === s ? "default" : "secondary"}
-              onClick={() => setStatusFilter(s as SubmissionStatus)}
+              onClick={() => setStatusFilter(s as SubmissionStatus | "all")}
               className="text-xs capitalize"
             >
               {s.replace(/_/g, " ")}
@@ -80,34 +77,30 @@ export default function SubmissionsPage() {
         </div>
       </motion.div>
 
-      {/* Submissions Table */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
         className="rounded-xl border border-border bg-card overflow-hidden"
       >
-        {/* Header */}
-        <div className="grid grid-cols-[100px_1fr_120px_80px_80px_100px] gap-4 px-6 py-3 text-xs font-medium text-foreground-subtle uppercase tracking-wider border-b border-border bg-card-elevated">
-          <div>User</div>
+        <div className="grid grid-cols-[1fr_120px_80px_100px] gap-4 px-6 py-3 text-xs font-medium text-foreground-subtle uppercase tracking-wider border-b border-border bg-card-elevated">
           <div>Problem</div>
           <div className="text-center">Verdict</div>
           <div className="text-center hidden sm:block">Time</div>
-          <div className="text-center hidden sm:block">Memory</div>
           <div className="text-right">When</div>
         </div>
 
         {isLoading ? (
-          <div className="p-4"><TableSkeleton columns={6} rows={5} /></div>
+          <div className="p-4"><TableSkeleton columns={4} rows={5} /></div>
         ) : isError ? (
           <ErrorState title="Failed to load submissions" onRetry={() => refetch()} />
-        ) : !submissions || submissions.items?.length === 0 || submissions.length === 0 ? (
+        ) : !submissions || submissions.length === 0 ? (
           <EmptyState
             title="No submissions"
             description="No submissions match your filters."
           />
         ) : (
-          (Array.isArray(submissions) ? submissions : submissions.items || []).map((submission, index) => (
+          (Array.isArray(submissions) ? submissions : []).map((submission, index) => (
             <motion.div
               key={submission.id}
               initial={{ opacity: 0 }}
@@ -116,27 +109,18 @@ export default function SubmissionsPage() {
             >
               <Link
                 href={`/submissions/${submission.id}`}
-                className="grid grid-cols-[100px_1fr_120px_80px_80px_100px] gap-4 px-6 py-4 items-center hover:bg-card-hover border-b border-border/50 transition-colors group"
+                className="grid grid-cols-[1fr_120px_80px_100px] gap-4 px-6 py-4 items-center hover:bg-card-hover border-b border-border/50 transition-colors group"
               >
-                <div className="truncate text-sm font-medium">
-                  {submission.username || `User ${submission.user_id}`}
-                </div>
                 <div>
                   <span className="text-sm font-medium group-hover:text-primary transition-colors">
                     Problem #{submission.problem_id}
                   </span>
-                  <div className="text-xs text-foreground-subtle mt-0.5">
-                    Python
-                  </div>
                 </div>
                 <div className="flex justify-center">
                   <VerdictBadge status={submission.verdict || "in_queue"} />
                 </div>
                 <div className="text-center text-sm text-foreground-muted hidden sm:block">
                   {formatExecutionTime(submission.execution_time)}
-                </div>
-                <div className="text-center text-sm text-foreground-muted hidden sm:block">
-                  {formatMemory(0)}
                 </div>
                 <div className="text-right text-xs text-foreground-subtle">
                   {formatRelativeTime(submission.submitted_at)}

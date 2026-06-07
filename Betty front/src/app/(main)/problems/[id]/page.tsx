@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, use } from "react";
 import { motion } from "framer-motion";
 import {
   Send,
@@ -11,10 +11,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CodeEditor } from "@/components/editor/code-editor";
-import { LanguageSelector } from "@/components/editor/language-selector";
 import { VerdictBadge } from "@/components/submissions/verdict-badge";
 import { ProblemDetailSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -23,7 +21,6 @@ import { useProblem } from "@/lib/hooks/use-problems";
 import { useSubmitCode, useMySubmissions } from "@/lib/hooks/use-submissions";
 import { cn, formatExecutionTime } from "@/lib/utils";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -32,19 +29,11 @@ interface PageProps {
 export default function ProblemDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const problemId = parseInt(id, 10);
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"description" | "submissions">(
     "description",
   );
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [mounted, setMounted] = useState(false);
   const { getCode, resetCode, language } = useEditorStore();
-
-  useEffect(() => {
-    // eslint-disable-next-line
-    setMounted(true);
-  }, []);
 
   const { data: problem, isLoading, isError, refetch } = useProblem(problemId);
   const submitMutation = useSubmitCode();
@@ -63,18 +52,11 @@ export default function ProblemDetailPage({ params }: PageProps) {
         source_code: currentCode,
       },
       {
-        onSuccess: (data) => {
-          // Switch to submissions tab
+        onSuccess: () => {
           setActiveTab("submissions");
         },
       },
     );
-  };
-
-  const handleCopy = (text: string, caseId: number) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(caseId);
-    setTimeout(() => setCopiedId(null), 2000);
   };
 
   if (isLoading) {
@@ -100,14 +82,12 @@ export default function ProblemDetailPage({ params }: PageProps) {
         isFullscreen && "fixed inset-0 z-50 bg-background !flex flex-col",
       )}
     >
-      {/* Top Bar Subgrid */}
       <div
         className={cn(
           "grid grid-cols-1 lg:grid-cols-subgrid col-span-1 lg:col-span-2 border-b border-border bg-card-elevated",
           isFullscreen && "hidden",
         )}
       >
-        {/* Left Tabs */}
         <div className="flex items-center gap-1 px-4 py-2 border-b lg:border-b-0 lg:border-r border-border">
           {(["description", "submissions"] as const).map((tab) => (
             <button
@@ -125,7 +105,6 @@ export default function ProblemDetailPage({ params }: PageProps) {
           ))}
         </div>
 
-        {/* Right Toolbar */}
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-1">
             <Button
@@ -152,14 +131,12 @@ export default function ProblemDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Content Subgrid */}
       <div
         className={cn(
           "grid grid-cols-1 lg:grid-cols-subgrid col-span-1 lg:col-span-2 overflow-hidden",
           isFullscreen && "!flex flex-col flex-1",
         )}
       >
-        {/* Left Panel — Problem Description */}
         <div
           className={cn(
             "border-b lg:border-b-0 lg:border-r border-border overflow-y-auto p-6",
@@ -172,23 +149,14 @@ export default function ProblemDetailPage({ params }: PageProps) {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2 }}
             >
-              {/* Problem Title */}
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h1 className="text-xl font-bold">
-                    {problem.id}. {problem.name}
-                  </h1>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="success" className="text-xs">
-                      Unknown
-                    </Badge>
-                  </div>
-                </div>
+              <div className="mb-4">
+                <h1 className="text-xl font-bold">
+                  {problem.id}. {problem.name}
+                </h1>
               </div>
 
-              {/* Statement */}
               <div className="prose prose-invert prose-sm max-w-none mb-8">
-                {problem.statement?.split("\n").map((line, i) => {
+                {problem.statement?.split("\n").map((line: string, i: number) => {
                   if (line.startsWith("### ")) {
                     return (
                       <h3 key={i} className="text-base font-semibold mt-6 mb-2">
@@ -278,17 +246,14 @@ export default function ProblemDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* Right Panel — Code Editor */}
         <div className={cn("flex flex-col overflow-hidden", isFullscreen && "h-full")}>
-          {/* Editor */}
           <div className="flex-1 min-h-[400px]">
             <CodeEditor problemId={id} height="100%" />
           </div>
 
-          {/* Bottom Actions */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-card">
             <div className="text-xs text-foreground-subtle">
-              {mounted ? language.toUpperCase() : "CPP"} • UTF-8
+              {language.toUpperCase()} • UTF-8
             </div>
             <div className="flex items-center gap-2">
               <Button

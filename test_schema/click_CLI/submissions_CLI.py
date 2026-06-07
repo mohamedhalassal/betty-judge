@@ -40,6 +40,7 @@ PAGE_NUMBER = 1
 PROBLEM_FILTER = "V"
 IMPORT_USER_ID = 1
 IMPORT_PROBLEM_ID = 4
+MAX_STATUS_PAGES = 50
 
 BASE_URL = f"https://codeforces.com/group/{GROUP_ID}/contest/{CONTEST_ID}"
 STATUS_URL = f"{BASE_URL}/status"
@@ -141,7 +142,7 @@ def matches_problem_filter(submission: Dict[str, str]) -> bool:
     if not PROBLEM_FILTER:
         return True
 
-    problem = submission["problem"].strip().lower()
+    problem = re.sub(r"\s+", " ", submission["problem"].strip().lower())
     wanted = PROBLEM_FILTER.strip().lower()
     return (
         problem == wanted
@@ -274,11 +275,12 @@ async def submissions_on_current_page(page) -> List[Dict[str, str]]:
 async def collect_submissions(page) -> List[Dict[str, str]]:
     await open_status_page(page)
     last_page = await last_status_page_number(page)
-    click.echo(f"Detected {last_page} status page(s).")
+    pages_to_scan = min(last_page, MAX_STATUS_PAGES) if MAX_STATUS_PAGES else last_page
+    click.echo(f"Detected {last_page} status page(s). Scanning {pages_to_scan}.")
 
     by_id: Dict[str, Dict[str, str]] = {}
-    for status_page in range(1, last_page + 1):
-        click.echo(f"Reading status page {status_page}/{last_page}")
+    for status_page in range(1, pages_to_scan + 1):
+        click.echo(f"Reading status page {status_page}/{pages_to_scan}")
         await page.goto(f"{STATUS_URL}/page/{status_page}", wait_until="domcontentloaded")
         await wait_for_status_page(page)
         for submission in await submissions_on_current_page(page):
@@ -406,16 +408,18 @@ async def main() -> None:
         click.echo(f"Done. Inserted {inserted_count} submission(s).")
 
 @click.command()
-@click.option("--problem-filter", default='A', help="Only import submissions for problems whose name starts with this string.")
+@click.option("--problem-filter", default='V', help="Only import submissions for problems whose name starts with this string.")
 @click.option("--page-number", type=int, default=None, help="Only import submissions from this status page number.")
 @click.option("--user-id", type=int, default=1, help="The user ID to associate with the imported submissions.")
 @click.option("--problem-id", type=int, default=4, help="The problem ID to associate with the imported submissions.")
-def import_submissions(problem_filter, page_number, user_id, problem_id):
-    global PROBLEM_FILTER, PAGE_NUMBER, IMPORT_USER_ID, IMPORT_PROBLEM_ID
+@click.option("--max-status-pages", type=int, default=20, help="Maximum Codeforces status pages to scan before filtering.")
+def import_submissions(problem_filter, page_number, user_id, problem_id, max_status_pages):
+    global PROBLEM_FILTER, PAGE_NUMBER, IMPORT_USER_ID, IMPORT_PROBLEM_ID, MAX_STATUS_PAGES
     PROBLEM_FILTER = problem_filter
     PAGE_NUMBER = page_number
     IMPORT_USER_ID = user_id
     IMPORT_PROBLEM_ID = problem_id
+    MAX_STATUS_PAGES = max_status_pages
     click.echo(
         f"Importing Codeforces submissions for problem filter {PROBLEM_FILTER!r} "
         f"into problem {IMPORT_PROBLEM_ID} as user {IMPORT_USER_ID}."

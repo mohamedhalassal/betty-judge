@@ -7,16 +7,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     coreutils \
     time \
     && rm -rf /var/lib/apt/lists/*
-    
 RUN pip install --no-cache-dir \
-    "fastapi[standard]" \
+    azure-storage-queue \
+    azure-identity \
     sqlmodel \
     psycopg2-binary \
     python-dotenv \
     python-jose\
     pytest
 
+
 COPY judge/ .
 RUN rm -f src/models && mkdir -p src/models
 COPY backend/src/models/ ./src/models/
-CMD ["fastapi", "run", "main.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "main.py"]

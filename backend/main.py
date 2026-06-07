@@ -1,5 +1,7 @@
 # todo if in production don't run this function
 from dotenv import load_dotenv
+import os
+
 load_dotenv()
 
 from fastapi import FastAPI
@@ -15,7 +17,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,4 +29,4 @@ app.include_router(test_cases_router)
 app.include_router(submissions_router)
 
 if __name__ == "__main__":
-  pass
+    pass

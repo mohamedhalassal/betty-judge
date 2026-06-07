@@ -68,9 +68,12 @@ def validation(session: Session, submission_id: int):
 
     # Check if the submission verdict is "in queue"
     if submission.verdict != SubmissionStatus.IN_QUEUE:
-        raise JudgeSubmissionError(
-            status_code=400, detail="Submission verdict is not in queue"
+        message = (
+            f"Submission {submission_id} verdict is not in queue: "
+            f"{verdict_value(submission.verdict)}"
         )
+        print(message, flush=True)
+        return None, None
 
     # Check if the problem exists
     problem = session.exec(
@@ -152,7 +155,7 @@ def run_worker():
 
     while True:
         received_any = False
-        messages = queue.receive_messages(messages_per_page=1, visibility_timeout=600)
+        messages = queue.receive_messages(messages_per_page=1, visibility_timeout=300)
         for message in messages:
             received_any = True
 
@@ -196,6 +199,9 @@ def judge_submission(
 ):
     submission, problem = validation(session, submission_id)
     testcase_results = []
+    if submission is None:
+        message = "Submission verdict is not in queue"
+        return runner_response(message, testcase_results, include_testcase_results)
 
     # compile the code
     with tempfile.TemporaryDirectory() as temp_dir:

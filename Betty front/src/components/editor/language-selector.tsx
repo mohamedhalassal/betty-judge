@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useEditorStore } from "@/lib/store/editor-store";
 import { languages } from "@/config/editor";
 import { cn } from "@/lib/utils";
@@ -11,11 +12,17 @@ interface LanguageSelectorProps {
 
 export function LanguageSelector({ className }: LanguageSelectorProps) {
   const { language, setLanguage } = useEditorStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line
+    setMounted(true);
+  }, []);
 
   return (
     <div className={cn("relative", className)}>
       <select
-        value={language}
+        value={mounted ? language : "cpp"}
         onChange={(e) => setLanguage(e.target.value)}
         className="appearance-none bg-card-elevated border border-border rounded-lg px-3 py-1.5 pr-8 text-sm font-medium text-foreground cursor-pointer hover:border-border-hover focus:outline-none focus:ring-2 focus:ring-ring/50 transition-colors"
       >

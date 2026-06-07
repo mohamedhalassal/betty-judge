@@ -1,38 +1,34 @@
 import apiClient from "./client";
-import type { Submission, SubmissionListItem, SubmitCodePayload, PaginatedResponse } from "@/lib/types";
+import type { SubmissionResponse, SubmissionCreate, SubmissionStatus } from "@/lib/types";
 
 export const submissionsApi = {
-  submit: async (data: SubmitCodePayload) => {
-    const res = await apiClient.post<Submission>("/submissions", data);
+  submit: async (data: SubmissionCreate) => {
+    const res = await apiClient.post<SubmissionResponse>("/submit", data);
     return res.data;
   },
 
   getById: async (id: number) => {
-    const res = await apiClient.get<Submission>(`/submissions/${id}`);
+    const res = await apiClient.get<SubmissionResponse>(`/my-submissions/${id}`);
     return res.data;
   },
 
   getAll: async (params?: {
     page?: number;
-    limit?: number;
+    size?: number;
     problem_id?: number;
-    user_id?: number;
-    status?: string;
+    username?: string;
+    verdict?: SubmissionStatus;
   }) => {
-    const res = await apiClient.get<PaginatedResponse<SubmissionListItem>>("/submissions", {
-      params,
-    });
+    const res = await apiClient.get<SubmissionResponse[]>("/submissions", { params });
     return res.data;
   },
 
   getMySubmissions: async (params?: {
     page?: number;
-    limit?: number;
-    problem_id?: number;
+    size?: number;
+    verdict?: SubmissionStatus;
   }) => {
-    const res = await apiClient.get<PaginatedResponse<SubmissionListItem>>("/submissions/me", {
-      params,
-    });
+    const res = await apiClient.get<SubmissionResponse[]>("/my-submissions", { params });
     return res.data;
   },
 };

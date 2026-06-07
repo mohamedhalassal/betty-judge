@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { usersApi } from "@/lib/api/users";
 
-export function useLeaderboard(params?: { page?: number; limit?: number }) {
+export function useLeaderboard() {
   return useQuery({
-    queryKey: ["leaderboard", params],
-    queryFn: () => usersApi.getLeaderboard(params),
+    queryKey: ["leaderboard"],
+    queryFn: async () => ({ items: [] }),
+    enabled: false,
     staleTime: 30 * 1000,
   });
 }

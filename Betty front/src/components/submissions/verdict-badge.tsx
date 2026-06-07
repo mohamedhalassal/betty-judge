@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { getVerdictShort } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface VerdictBadgeProps {
@@ -11,33 +10,33 @@ interface VerdictBadgeProps {
 }
 
 export function VerdictBadge({ status, showFull = false, className }: VerdictBadgeProps) {
-  if (!status) {
+  if (!status || status === "in_queue") {
     return (
       <Badge variant="outline" className={cn("animate-pulse", className)}>
-        Pending
+        In Queue
       </Badge>
     );
   }
 
   const variantMap: Record<string, "success" | "destructive" | "warning" | "info" | "outline"> = {
-    "Accepted": "success",
-    "Wrong Answer": "destructive",
-    "Time Limit Exceeded": "warning",
-    "Runtime Error": "destructive",
-    "Compilation Error": "warning",
-    "Memory Limit Exceeded": "warning",
-    "Pending": "outline",
-    "Running": "info",
+    "accepted": "success",
+    "wrong_answer": "destructive",
+    "time_limit_exceeded": "warning",
   };
 
+  const shortMap: Record<string, string> = {
+    "accepted": "AC",
+    "wrong_answer": "WA",
+    "time_limit_exceeded": "TLE",
+    "in_queue": "Q",
+  };
+
+  const formattedStatus = status.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
   const variant = variantMap[status] || "outline";
-  const label = showFull ? status : getVerdictShort(status);
+  const label = showFull ? formattedStatus : (shortMap[status] || formattedStatus);
 
   return (
     <Badge variant={variant} className={cn(className)}>
-      {status === "Running" && (
-        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-current animate-pulse" />
-      )}
       {label}
     </Badge>
   );

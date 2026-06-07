@@ -15,6 +15,7 @@ import { authApi } from "@/lib/api/auth";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth-store";
+import type { User } from "@/lib/types";
 import { toast } from "sonner";
 import { useState } from "react";
 import axios from "axios";

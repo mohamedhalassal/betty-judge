@@ -1,6 +1,7 @@
 from typing import Annotated
-from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter, Query
+from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter, Query, logger
 from sqlmodel import select
+from src.services.queue_service import send_submission
 from src.models.submission import Submission, SubmissionStatus
 from src.models.problem import Problem
 from src.schemas.submission import SubmissionCreate, SubmissionResponse
@@ -79,7 +80,13 @@ async def create_submission(
     )  # pyright: ignore
     session.add(submission_db)  # pyright: ignore
     session.commit()  # pyright: ignore
-    session.refresh(submission_db)  # pyright: ignore
+    session.refresh(submission_db)  
+
+    try:
+      send_submission(submission_db.id)
+    except Exception:
+      logger.exception("Failed to enqueue submission")
+
     return submission_db
 
 

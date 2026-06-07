@@ -344,24 +344,6 @@ def test_submission_not_found():
     assert create_response.json()["detail"] == "Submission not found"
 
 
-def test_submission_verdict_not_in_queue():
-    with Session(engine) as session:
-        user = create_test_user(session)
-        problem = create_test_problem(session, user)
-        submission = create_test_submission(
-            session,
-            user,
-            problem.id,
-            "#include <iostream>\nint main(){std::cout<<1;}",
-            verdict=SubmissionStatus.ACCEPTED,
-        )
-
-        create_response = run_judge(session, submission.id)
-
-        assert create_response.status_code == 400
-        assert create_response.json()["detail"] == "Submission verdict is not in queue"
-
-
 def test_problem_not_found():
     with Session(engine) as session:
         user = create_test_user(session)

@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { usersApi } from "@/lib/api/users";
+import { authApi } from "@/lib/api/auth";
 
-export function useUserProfile(username: string) {
+export function useProfile(username: string) {
   return useQuery({
-    queryKey: ["user", username],
-    queryFn: () => usersApi.getProfile(username),
-    enabled: !!username,
-    staleTime: 60 * 1000,
+    queryKey: ["users", username],
+    queryFn: authApi.getMe,
+    enabled: false,
+    staleTime: 5 * 60 * 1000,
   });
 }

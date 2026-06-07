@@ -1,11 +1,10 @@
 import apiClient from "./client";
-import type { Problem, ProblemListItem, ProblemFilters, PaginatedResponse } from "@/lib/types";
+import type { Problem, ProblemCreate } from "@/lib/types";
 
 export const problemsApi = {
-  getAll: async (filters?: ProblemFilters) => {
-    const res = await apiClient.get<PaginatedResponse<ProblemListItem>>("/problems", {
-      params: filters,
-    });
+  getAll: async (search?: string) => {
+    const params = search ? { search } : {};
+    const res = await apiClient.get<Problem[]>("/problems", { params });
     return res.data;
   },
 
@@ -14,13 +13,13 @@ export const problemsApi = {
     return res.data;
   },
 
-  create: async (data: Partial<Problem>) => {
+  create: async (data: ProblemCreate) => {
     const res = await apiClient.post<Problem>("/problems", data);
     return res.data;
   },
 
-  update: async (id: number, data: Partial<Problem>) => {
-    const res = await apiClient.put<Problem>(`/problems/${id}`, data);
+  update: async (id: number, data: ProblemCreate) => {
+    const res = await apiClient.patch<Problem>(`/problems/${id}`, data);
     return res.data;
   },
 

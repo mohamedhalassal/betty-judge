@@ -5,7 +5,7 @@ import { useEditorStore } from "@/lib/store/editor-store";
 import { editorDefaults } from "@/config/editor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-
+import type { OnMount } from "@monaco-editor/react";
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
@@ -21,12 +21,15 @@ interface CodeEditorProps {
   height?: string;
 }
 
-export function CodeEditor({ problemId, className, height = "100%" }: CodeEditorProps) {
+export function CodeEditor({
+  problemId,
+  className,
+  height = "100%",
+}: CodeEditorProps) {
   const { language, fontSize, getCode, setCode } = useEditorStore();
   const code = getCode(problemId);
 
-  const handleEditorMount = (editor: unknown, monaco: unknown) => {
-    // @ts-expect-error - Monaco types
+  const handleEditorMount = ((editor, monaco) => {
     monaco.editor.defineTheme("betty-dark", {
       base: "vs-dark",
       inherit: true,
@@ -53,12 +56,17 @@ export function CodeEditor({ problemId, className, height = "100%" }: CodeEditor
         "editorWidget.border": "#1e1e2e",
       },
     });
-    // @ts-expect-error - Monaco types
     monaco.editor.setTheme("betty-dark");
-  };
+  }) satisfies OnMount;
 
   return (
-    <div className={cn("overflow-hidden rounded-lg border border-border", className)}>
+    <div
+      className={cn(
+        "overflow-hidden",
+        "h-full",
+        className,
+      )}
+    >
       <MonacoEditor
         height={height}
         language={language === "cpp" ? "cpp" : language}

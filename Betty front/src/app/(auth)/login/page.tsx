@@ -31,6 +31,7 @@ export default function LoginPage() {
     try {
       const data = await authApi.login(token);
 
+      setAuth({} as User, data.access_token);
       const user = await authApi.getMe();
       setAuth(user, data.access_token);
       toast.success("Successfully logged in!");

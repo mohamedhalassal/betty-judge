@@ -11,5 +11,5 @@ class AzureQueueService(MessageQueue):
             queue_name=os.getenv("AZURE_QUEUE_NAME")
         )
     def send_submission(self, submission_id: int):
-        message = json.dumps({"submission_id": submission_id})
+        message = str(submission_id)
         self.client.send_message(message)

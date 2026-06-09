@@ -9,6 +9,7 @@ from src.models.user import User
 from src.models.problem import Problem
 from src.models.submission import Submission, SubmissionStatus
 from src.core.security import verify_access_token, get_current_user
+from src.dependencies.queue import get_queue_service
 
 engine = create_engine(
     "sqlite://",
@@ -121,12 +122,14 @@ def test_create_and_get_my_submissions():
     assert data[0]["source_code"] == "print('user1')"
 
 
-def test_create_submission(monkeypatch):
+def test_create_submission():
 
-    monkeypatch.setattr(
-        submissions,
-        "send_submission",
-        lambda submission_id: None
+    class FakeQueueService:
+        def send_submission(self, submission_id):
+            pass
+
+    app.dependency_overrides[get_queue_service] = (
+        lambda: FakeQueueService()
     )
 
     with Session(engine) as session:
@@ -412,14 +415,16 @@ def test_filter_submissions_by_username_and_verdict():
 
     assert data[0]["verdict"] == "accepted"
     
-def test_create_submission_enqueues_message(monkeypatch):
+def test_create_submission_enqueues_message():
 
     called = []
 
-    monkeypatch.setattr(
-        submissions,
-        "send_submission",
-        lambda submission_id: called.append(submission_id)
+    class FakeQueueService:
+        def send_submission(self, submission_id):
+            called.append(submission_id)
+
+    app.dependency_overrides[get_queue_service] = (
+        lambda: FakeQueueService()
     )
 
     with Session(engine) as session:

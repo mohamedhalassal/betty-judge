@@ -1,6 +1,7 @@
 from typing import Annotated
 from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter, Query, logger
 from sqlmodel import select
+from src.services.message_queue import MessageQueue
 from src.dependencies.queue import get_queue_service
 from src.models.submission import Submission, SubmissionStatus
 from src.models.problem import Problem
@@ -68,7 +69,7 @@ async def create_submission(
     submission: Annotated[SubmissionCreate, Body(embed=False)],
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_user)],
-    queue_service = Depends(get_queue_service),
+    queue_service: Annotated[MessageQueue, Depends(get_queue_service)],
 ):
     if not session.exec(
         select(Problem).where(Problem.id == submission.problem_id)

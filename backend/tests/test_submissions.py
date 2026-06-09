@@ -122,7 +122,7 @@ def test_create_and_get_my_submissions():
     assert data[0]["source_code"] == "print('user1')"
 
 
-def test_create_submission(monkeypatch):
+def test_create_submission():
 
     class FakeQueueService:
         def send_submission(self, submission_id):
@@ -415,7 +415,7 @@ def test_filter_submissions_by_username_and_verdict():
 
     assert data[0]["verdict"] == "accepted"
     
-def test_create_submission_enqueues_message(monkeypatch):
+def test_create_submission_enqueues_message():
 
     called = []
 

@@ -198,6 +198,36 @@ def test_runtime_error_solution():
         assert updated_submission.execution_memory is not None
 
 
+def test_stack_overflow_is_runtime_error_recursionCase():
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+        test_case = create_test_case(session, problem, "2 3", "5", False)
+        submission = create_test_submission(
+            session,
+            user,
+            problem.id,
+            source_code=(
+                "#include <iostream>\n"
+                "int x = 0;\n"
+                "void recurse(){\n"
+                "    int a[1000];\n"
+                "    a[0] = x++;\n"
+                "    recurse();\n"
+                "    std::cout << a[0];\n"
+                "}\n"
+                "int main(){recurse();}"
+                ),  
+            )
+        create_response = run_judge(session, submission.id)
+        session.expire_all()
+        updated_submission = session.get(Submission, submission.id)
+
+        assert create_response.status_code == 201
+        assert create_response.json() == f"Runtime Error on test: {test_case.id}"
+        assert updated_submission.verdict == SubmissionStatus.RUNTIME_ERROR
+
+
 def test_time_limit_exceeded_solution():
     with Session(engine) as session:
         user = create_test_user(session)

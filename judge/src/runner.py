@@ -8,6 +8,7 @@ import sys
 import time
 import threading
 import socket
+import json
 from pathlib import Path
 
 REPO_DIR = Path(__file__).resolve().parents[2]
@@ -20,6 +21,7 @@ from src.models.problem import Problem
 from src.models.test_case import TestCase
 from src.models.submission import SubmissionStatus
 from dotenv import load_dotenv
+from azure.core.exceptions import ResourceExistsError
 from azure.storage.queue import QueueClient
 
 load_dotenv(REPO_DIR / "backend" / ".env")
@@ -32,9 +34,11 @@ engine = create_engine(DATABASE_URL)
 
 WORKER_NAME = os.getenv("WORKER_NAME") or socket.gethostname()
 AZURE_QUEUE_NAME = os.getenv("AZURE_QUEUE_NAME", "quickstartqueuesample")
+AZURE_POISON_QUEUE_NAME = os.getenv("AZURE_POISON_QUEUE_NAME", f"{AZURE_QUEUE_NAME}-poison")
 AZURE_QUEUE_CONNECTION_STRING = os.getenv("AZURE_QUEUE_CONNECTION_STRING")
 if not AZURE_QUEUE_CONNECTION_STRING:
     raise RuntimeError("AZURE_QUEUE_CONNECTION_STRING must be set in backend/.env")
+MAX_QUEUE_DEQUEUE_COUNT = int(os.getenv("MAX_QUEUE_DEQUEUE_COUNT", "5"))
 
 
 class JudgeSubmissionError(Exception):
@@ -148,6 +152,14 @@ def run_worker():
         AZURE_QUEUE_CONNECTION_STRING,
         queue_name=AZURE_QUEUE_NAME,
     )
+    poison_queue = QueueClient.from_connection_string(
+        AZURE_QUEUE_CONNECTION_STRING,
+        queue_name=AZURE_POISON_QUEUE_NAME,
+    )
+    try:
+        poison_queue.create_queue()
+    except ResourceExistsError:
+        pass
     print(
         f"Judge worker {WORKER_NAME} listening on queue {AZURE_QUEUE_NAME}",
         flush=True,
@@ -158,6 +170,23 @@ def run_worker():
         messages = queue.receive_messages(messages_per_page=1, visibility_timeout=300)
         for message in messages:
             received_any = True
+
+            dequeue_count = getattr(message, "dequeue_count", 1) or 1
+            if dequeue_count > MAX_QUEUE_DEQUEUE_COUNT:
+                poison_payload = {
+                    "content": message.content,
+                    "dequeue_count": dequeue_count,
+                    "source_queue": AZURE_QUEUE_NAME,
+                    "worker": WORKER_NAME,
+                }
+                poison_queue.send_message(json.dumps(poison_payload))
+                print(
+                    f"[{WORKER_NAME}] moved poison message {message.content} "
+                    f"to {AZURE_POISON_QUEUE_NAME} after {dequeue_count - 1} failed attempt(s)",
+                    flush=True,
+                )
+                queue.delete_message(message)
+                continue
 
             try:
                 submission_id = int(message.content)
@@ -181,7 +210,13 @@ def run_worker():
                     f"[{WORKER_NAME}] skipped submission: {exc.status_code} {exc.detail}",
                     flush=True,
                 )
-                queue.delete_message(message)
+                if exc.detail in ("Submission not found", "Problem not found"):
+                    print(
+                        f"[{WORKER_NAME}] leaving message {message.content} in queue for retry",
+                        flush=True,
+                    )
+                else:
+                    queue.delete_message(message)
             except Exception as exc:
                 print(
                     f"[{WORKER_NAME}] failed submission message {message.content}: {exc}",
@@ -261,6 +296,11 @@ def judge_submission(
                 resource.setrlimit(resource.RLIMIT_AS, (maxMemory, maxMemory))
             except (OSError, ValueError):
                 pass
+                stack_limit = 256 * 1024 * 1024  # 256 MB
+                try:
+                    resource.setrlimit(resource.RLIMIT_STACK, (stack_limit, stack_limit))
+                except (OSError, ValueError):
+                     pass
 
         test_case_number = 0
         last_test_case_id = 0

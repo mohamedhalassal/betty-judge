@@ -1,9 +1,9 @@
 import json
 
-from src.services.queue_service import send_submission
+from src.services.queue_service import AzureQueueService
 
 
-def test_send_submission(monkeypatch):
+def test_send_submission():
 
     sent_messages = []
 
@@ -11,16 +11,13 @@ def test_send_submission(monkeypatch):
         def send_message(self, message):
             sent_messages.append(message)
 
-    monkeypatch.setattr(
-        "src.services.queue_service.get_queue_client",
-        lambda: FakeQueueClient(),
-    )
+    service = AzureQueueService.__new__(AzureQueueService)
+    service.client = FakeQueueClient()
 
-    send_submission(123)
+    service.send_submission(123)
 
     assert len(sent_messages) == 1
 
     assert json.loads(sent_messages[0]) == {
         "submission_id": 123
     }
-

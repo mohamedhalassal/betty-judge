@@ -1,5 +1,4 @@
-from src.runner import run_worker
-
+from src.worker import run_worker
 
 if __name__ == "__main__":
     run_worker()

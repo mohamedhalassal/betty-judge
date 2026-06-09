@@ -11,8 +11,7 @@ def test_send_submission():
         def send_message(self, message):
             sent_messages.append(message)
 
-    service = AzureQueueService.__new__(AzureQueueService)
-    service.client = FakeQueueClient()
+    service = AzureQueueService(client=FakeQueueClient())
 
     service.send_submission(123)
 

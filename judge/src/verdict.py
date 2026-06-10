@@ -24,8 +24,8 @@ def classify_testcase_result(
     test_case_number: int,
     problem_time_limit: int,
     problem_memory_limit: int,
-    current_execution_time: int,
-    current_memory_usage: int,
+    execution_time: int,
+    memory_usage: int,
     cpu_limit_seconds: int,
 ) -> VerdictResult | None:
     if result.wall_timed_out:
@@ -33,50 +33,46 @@ def classify_testcase_result(
         return VerdictResult(
             verdict=SubmissionStatus.IDLENESS_LIMIT_EXCEEDED,
             message=message,
-            execution_time=current_execution_time,
-            execution_memory=current_memory_usage,
+            execution_time=execution_time,
+            execution_memory=memory_usage,
         )
-    # time limit exceeded and runtime error and memory limit exceeded cases after signal
-    if result.returncode != 0:
-        sig = -result.returncode
-        # time limit exceeded case
-        if sig == signal.SIGXCPU or (
-            sig == signal.SIGKILL and result.cpu_time_ms / 1000 >= cpu_limit_seconds
-        ):
+    # time limit exceeded case
+    sig = -result.returncode
+    if result.returncode != 0 and (sig == signal.SIGXCPU or(sig == signal.SIGKILL and result.cpu_time_ms / 1000 >= cpu_limit_seconds)):
             message = f"Time Limit Exceeded on test: {test_case_number}"
             return VerdictResult(
                 verdict=SubmissionStatus.TIME_LIMIT_EXCEEDED,
                 message=message,
                 execution_time=problem_time_limit,
-                execution_memory=current_memory_usage,
-            )
-        stderr_lower = result.stderr.lower()
-
-        #  clear MLE cases
-        if (
-            "bad_alloc" in stderr_lower
-            or "cannot allocate memory" in stderr_lower
-            or "out of memory" in stderr_lower
-        ):
-            message = f"Memory Limit Exceeded on test: {test_case_number}"
-            return VerdictResult(
-                verdict=SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
-                message=message,
-                execution_time=current_execution_time,
                 execution_memory=problem_memory_limit,
             )
-        #  maybe MLE, but conflicts with RE => say RE
+
+    stderr_lower = result.stderr.lower()
+
+    # clear MLE cases
+    if result.returncode != 0 and ("bad_alloc" in stderr_lower
+        or "cannot allocate memory" in stderr_lower
+        or "out of memory" in stderr_lower
+    ):
+        message = f"Memory Limit Exceeded on test: {test_case_number}"
+        return VerdictResult(
+            verdict=SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+            message=message,
+            execution_time=execution_time,
+            execution_memory=problem_memory_limit,
+        )
+
+    # maybe MLE, but conflicts with RE => say RE
+    if result.returncode != 0:
         message = f"Runtime Error on test: {test_case_number}"
         return VerdictResult(
             verdict=SubmissionStatus.RUNTIME_ERROR,
             message=message,
-            execution_time=current_execution_time,
-            execution_memory=current_memory_usage,
+            execution_time=execution_time,
+            execution_memory=memory_usage,
         )
-    # measure execution time and memory usage
-    memory_usage = current_memory_usage
-    execution_time = current_execution_time
 
+    # measure execution time and memory usage
     if memory_usage > problem_memory_limit:
         message = f"Memory Limit Exceeded on test: {test_case_number}"
         return VerdictResult(
@@ -93,10 +89,8 @@ def classify_testcase_result(
             verdict=SubmissionStatus.TIME_LIMIT_EXCEEDED,
             message=message,
             execution_time=problem_time_limit,
-            execution_memory=current_memory_usage,
+            execution_memory=memory_usage,
         )
-        # todo : use checker_code and handle exceptions instead of manually checking return output and expected outputå
-        # todo : set test_case number for test_case
  
     # compare output with expected output
     stdout = result.stdout

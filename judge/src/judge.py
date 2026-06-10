@@ -43,8 +43,8 @@ def judge_submission(
                 execution_memory=0,
             )
             return message
+        
         exe_file = compile_result.exe_file
-
         execution_time = 0
         memory_usage = 0
 
@@ -78,16 +78,17 @@ def judge_submission(
                 limit_resources=limit_resources,
                 wall_limit_seconds=wall_limit_seconds,
             )
-            current_execution_time = max(execution_time, result.cpu_time_ms)
-            current_memory_usage = max(memory_usage, result.memory_mb)
+            execution_time = max(execution_time, result.cpu_time_ms)
+            memory_usage = max(memory_usage, result.memory_mb)
+
             verdict_result = classify_testcase_result(
                 result=result,
                 expected_output=test_case.expected_output,
                 test_case_number=test_case_number,
                 problem_time_limit=problem.time_limit,
                 problem_memory_limit=problem.memory_limit,
-                current_execution_time=current_execution_time,
-                current_memory_usage=current_memory_usage,
+                execution_time=execution_time,
+                memory_usage=memory_usage,
                 cpu_limit_seconds=cpu_limit_seconds,
             )
 
@@ -100,10 +101,7 @@ def judge_submission(
                     execution_time=verdict_result.execution_time,
                     execution_memory=verdict_result.execution_memory,
                 )
-                return verdict_result.message
-            execution_time = current_execution_time
-            memory_usage = current_memory_usage
-            
+                return verdict_result.message            
         
         # if all test cases pass, update submission verdict to "accepted"
         message = "Accepted"

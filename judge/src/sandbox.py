@@ -1,6 +1,7 @@
 import resource
 
 def build_resource_limiter(cpu_limit_seconds: int, memory_limit_mb: int):
+    # set limits for CPU time, memory usage, and stack size wup to 5 times the memory limit to allow for overhead
     max_memory = memory_limit_mb * 1024 * 1024 * 5
     stack_limit = 256 * 1024 * 1024
 

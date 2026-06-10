@@ -1,11 +1,13 @@
 from typing import Annotated
-from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter, Query
+from fastapi import Body, Depends, FastAPI, HTTPException, APIRouter, Query, logger
 from sqlmodel import select
+from src.services.message_queue import MessageQueue
+from src.dependencies.queue import get_queue_service
 from src.models.submission import Submission, SubmissionStatus
 from src.models.problem import Problem
 from src.schemas.submission import SubmissionCreate, SubmissionResponse
 from src.models.user import User
-from src.database import SessionDep, create_db_and_tables
+from src.database import SessionDep
 from src.core.security import verify_access_token, get_current_user
 
 router = APIRouter()
@@ -67,6 +69,7 @@ async def create_submission(
     submission: Annotated[SubmissionCreate, Body(embed=False)],
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_user)],
+    queue_service: Annotated[MessageQueue, Depends(get_queue_service)],
 ):
     if not session.exec(
         select(Problem).where(Problem.id == submission.problem_id)
@@ -79,7 +82,13 @@ async def create_submission(
     )  # pyright: ignore
     session.add(submission_db)  # pyright: ignore
     session.commit()  # pyright: ignore
-    session.refresh(submission_db)  # pyright: ignore
+    session.refresh(submission_db)  
+
+    try:
+      queue_service.send_submission(submission_db.id)
+    except Exception:
+      logger.exception("Failed to enqueue submission")
+
     return submission_db
 
 

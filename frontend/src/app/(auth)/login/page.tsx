@@ -15,6 +15,7 @@ import { authApi } from "@/lib/api/auth";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth-store";
+import type { User } from "@/lib/types";
 import { toast } from "sonner";
 import { useState } from "react";
 import axios from "axios";
@@ -31,6 +32,7 @@ export default function LoginPage() {
     try {
       const data = await authApi.login(token);
 
+      setAuth({} as User, data.access_token);
       const user = await authApi.getMe();
       setAuth(user, data.access_token);
       toast.success("Successfully logged in!");

@@ -2,12 +2,14 @@ from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine
 from sqlmodel.pool import StaticPool
 
+from src.api import submissions
 from main import app
 from src.database import get_session
 from src.models.user import User
 from src.models.problem import Problem
 from src.models.submission import Submission, SubmissionStatus
 from src.core.security import verify_access_token, get_current_user
+from src.dependencies.queue import get_queue_service
 
 engine = create_engine(
     "sqlite://",
@@ -121,6 +123,14 @@ def test_create_and_get_my_submissions():
 
 
 def test_create_submission():
+
+    class FakeQueueService:
+        def send_submission(self, submission_id):
+            pass
+
+    app.dependency_overrides[get_queue_service] = (
+        lambda: FakeQueueService()
+    )
 
     with Session(engine) as session:
 
@@ -404,3 +414,35 @@ def test_filter_submissions_by_username_and_verdict():
     assert data[0]["source_code"] == "accepted code"
 
     assert data[0]["verdict"] == "accepted"
+    
+def test_create_submission_enqueues_message():
+
+    called = []
+
+    class FakeQueueService:
+        def send_submission(self, submission_id):
+            called.append(submission_id)
+
+    app.dependency_overrides[get_queue_service] = (
+        lambda: FakeQueueService()
+    )
+
+    with Session(engine) as session:
+        user = create_test_user(session)
+        problem = create_test_problem(session, user)
+
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    response = client.post(
+        "/submit",
+        json={
+            "problem_id": problem.id,
+            "source_code": "print(123)"
+        },
+    )
+
+    assert response.status_code == 201
+
+    assert len(called) == 1
+
+    assert called[0] == response.json()["id"]

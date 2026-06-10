@@ -8,6 +8,9 @@ from src.judge import judge_submission
 from src.repository import JudgeSubmissionError
 from src.database import get_session
 from src.models.submission import Submission
+from src.repository import finish_submission
+from src.verdict import VerdictResult
+from src.models.submission import SubmissionStatus
 
 WORKER_NAME = os.getenv("WORKER_NAME") or socket.gethostname()
 AZURE_QUEUE_NAME = os.getenv("AZURE_QUEUE_NAME", "quickstartqueuesample")
@@ -37,10 +40,35 @@ def push_submission_to_poison_queue(
         flush=True,
     )
 
-
+def update_failed_submission_in_database(message):
+    try:
+        submission_id = int(message.content)
+        with get_session() as session:
+            finish_submission(
+                session=session,
+                submission_id=submission_id,
+                Verdict_result=VerdictResult(
+                    verdict=SubmissionStatus.FAILED,
+                    message="Submission moved to poison queue after multiple failed attempts",
+                    execution_time=0,
+                    execution_memory=0,
+                ),
+            )
+    except ValueError:
+        print(
+            f"[{WORKER_NAME}] poison message has invalid submission id: {message.content}",
+            flush=True,
+        )
+    except Exception as exc:
+        print(
+            f"[{WORKER_NAME}] failed to mark submission {message.content} as failed: {exc}",
+            flush=True,
+        )
+    
 def handle_message(message, queue, poison_queue):
     dequeue_count = getattr(message, "dequeue_count", 1) or 1
     if dequeue_count > MAX_QUEUE_DEQUEUE_COUNT:
+        update_failed_submission_in_database(message)
         push_submission_to_poison_queue(message.content, dequeue_count, poison_queue)
         queue.delete_message(message)
         return

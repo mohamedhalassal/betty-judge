@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from src.models.submission import Submission, SubmissionStatus
 from src.models.problem import Problem
 from src.verdict import verdict_value
-
+from src.verdict import VerdictResult
 class JudgeSubmissionError(Exception):
     def __init__(self, status_code: int, detail: str):
         self.status_code = status_code
@@ -38,17 +38,14 @@ def load_submission_for_judging(session: Session, submission_id: int):
 def finish_submission(
     session: Session,
     submission_id: int,
-    verdict: SubmissionStatus,
-    message: str,
-    execution_time: float | None = None,
-    execution_memory: float | None = None,
+    Verdict_result: VerdictResult,
 ):
     session.exec(
         update(Submission)
         .values(
-            verdict=verdict,
-            execution_time=execution_time,
-            execution_memory=execution_memory,
+            verdict=Verdict_result.verdict,
+            execution_time=Verdict_result.execution_time,
+            execution_memory=Verdict_result.execution_memory,
         )
         .where(
             (Submission.id == submission_id)
@@ -56,4 +53,4 @@ def finish_submission(
         )
     )
     session.commit()
-    return message
+    return Verdict_result.message

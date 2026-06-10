@@ -16,7 +16,7 @@ from src.sandbox import build_resource_limiter
 from src.repository import load_submission_for_judging
 from src.repository import finish_submission
 from src.repository import JudgeSubmissionError
-
+from src.verdict import VerdictResult
 def judge_submission(
     session: Session,
     submission_id: int,
@@ -33,16 +33,18 @@ def judge_submission(
 
         # compilation error
         if not compile_result.success:
-            message = compile_result.message
-            finish_submission(
-                session,
-                submission_id,
-                SubmissionStatus.COMPILE_ERROR,
-                message,
+            verdict_result = VerdictResult(
+                verdict=SubmissionStatus.COMPILE_ERROR,
+                message=compile_result.message,
                 execution_time=0,
                 execution_memory=0,
             )
-            return message
+            finish_submission(
+                session,
+                submission_id,
+                verdict_result,
+            )
+            return verdict_result.message
         
         exe_file = compile_result.exe_file
         execution_time = 0
@@ -101,21 +103,20 @@ def judge_submission(
                 finish_submission(
                     session,
                     submission_id,
-                    verdict_result.verdict,
-                    verdict_result.message,
-                    execution_time=verdict_result.execution_time,
-                    execution_memory=verdict_result.execution_memory,
+                    verdict_result,
                 )
                 return verdict_result.message            
         
         # if all test cases pass, update submission verdict to "accepted"
-        message = "Accepted"
-        finish_submission(
-            session,
-            submission_id,
-            SubmissionStatus.ACCEPTED,
-            message,
+        verdict_result = VerdictResult(
+            verdict=SubmissionStatus.ACCEPTED,
+            message="Accepted",
             execution_time=execution_time,
             execution_memory=memory_usage,
         )
-        return message
+        finish_submission(
+            session,
+            submission_id,
+            verdict_result,
+        )
+        return verdict_result.message

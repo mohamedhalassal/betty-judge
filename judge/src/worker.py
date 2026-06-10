@@ -103,6 +103,10 @@ def run_worker():
                     f"[{WORKER_NAME}] failed submission message {message.content}: {exc}",
                     flush=True,
                 )
+                print(
+                f"[{WORKER_NAME}] leaving message {message.content} in queue for retry",
+                flush=True,
+    )
 
         if not received_any:
             time.sleep(1)

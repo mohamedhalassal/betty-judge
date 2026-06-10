@@ -15,7 +15,7 @@ from src.verdict import classify_testcase_result
 from src.sandbox import build_resource_limiter
 from src.repository import load_submission_for_judging
 from src.repository import finish_submission
-
+from src.repository import JudgeSubmissionError
 
 def judge_submission(
     session: Session,
@@ -53,7 +53,7 @@ def judge_submission(
         wall_limit_seconds = cpu_limit_seconds * 3 + 5
 
         limit_resources = build_resource_limiter(cpu_limit_seconds, problem.memory_limit)
-
+        
         test_case_number = 0
         last_test_case_id = 0
 
@@ -71,13 +71,18 @@ def judge_submission(
             last_test_case_id = test_case.id
 
             # run the executable with the test case input
-
-            result = run_testcase(
-                exe_file=exe_file,
-                input_data=test_case.input_data,
-                limit_resources=limit_resources,
-                wall_limit_seconds=wall_limit_seconds,
-            )
+            try:
+                result = run_testcase(
+                    exe_file=exe_file,
+                    input_data=test_case.input_data,
+                    limit_resources=limit_resources,
+                    wall_limit_seconds=wall_limit_seconds,
+                )
+            except Exception as exc:
+                raise JudgeSubmissionError(
+                    status_code=503,
+                    detail="Failed to run submission on test case",
+                ) from exc
             execution_time = max(execution_time, result.cpu_time_ms)
             memory_usage = max(memory_usage, result.memory_mb)
 

@@ -94,13 +94,10 @@ def run_worker():
                     f"[{WORKER_NAME}] skipped submission: {exc.status_code} {exc.detail}",
                     flush=True,
                 )
-                if exc.detail in ("Submission not found", "Problem not found"):
-                    print(
-                        f"[{WORKER_NAME}] leaving message {message.content} in queue for retry",
-                        flush=True,
-                    )
-                else:
-                    queue.delete_message(message)
+                print(
+                    f"[{WORKER_NAME}] leaving message {message.content} in queue for retry",
+                    flush=True,
+                )
             except Exception as exc:
                 print(
                     f"[{WORKER_NAME}] failed submission message {message.content}: {exc}",

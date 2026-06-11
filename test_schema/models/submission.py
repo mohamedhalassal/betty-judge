@@ -14,6 +14,7 @@ class SubmissionStatus(str, Enum):
     COMPILE_ERROR = "compile error"
     MEMORY_LIMIT_EXCEEDED = "memory limit exceeded"
     IDLENESS_LIMIT_EXCEEDED = "idleness limit exceeded"
+    FAILED = "failed"
 
 class Submission(SQLModel, table=True):
     __tablename__ = "submissions"
@@ -31,3 +32,4 @@ class Submission(SQLModel, table=True):
     codeforces_memory_bytes: int 
     codeforces_failed_test: int | None = None
     local_failed_test: int | None = None
+

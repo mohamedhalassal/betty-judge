@@ -2,7 +2,6 @@ import json
 import os
 import socket
 import time
-from azure.core.exceptions import ResourceExistsError
 from azure.storage.queue import QueueClient
 from src.judge import judge_submission
 from src.repository import JudgeSubmissionError
@@ -11,6 +10,7 @@ from src.models.submission import Submission
 from src.repository import finish_submission
 from src.verdict import VerdictResult
 from src.models.submission import SubmissionStatus
+from src.queues import AzurePoisonQueue, AzureQueue, Queue, PoisonQueue
 
 WORKER_NAME = os.getenv("WORKER_NAME") or socket.gethostname()
 AZURE_QUEUE_NAME = os.getenv("AZURE_QUEUE_NAME", "quickstartqueuesample")
@@ -25,7 +25,7 @@ from src.verdict import verdict_value
 
 
 def push_submission_to_poison_queue(
-    message_content: str, dequeue_count: int, poison_queue: QueueClient
+    message_content: str, dequeue_count: int, poison_queue: PoisonQueue
 ):
     poison_payload = {
         "content": message_content,
@@ -65,7 +65,7 @@ def update_failed_submission_in_database(message):
             flush=True,
         )
     
-def handle_message(message, queue, poison_queue):
+def handle_message(message, queue: Queue, poison_queue: PoisonQueue):
     dequeue_count = getattr(message, "dequeue_count", 1) or 1
     if dequeue_count > MAX_QUEUE_DEQUEUE_COUNT:
         update_failed_submission_in_database(message)
@@ -115,27 +115,29 @@ def handle_message(message, queue, poison_queue):
         )
 
 
-def run_worker():
-    queue = QueueClient.from_connection_string(
+def create_azure_queue():
+    client = QueueClient.from_connection_string(
         AZURE_QUEUE_CONNECTION_STRING,
         queue_name=AZURE_QUEUE_NAME,
     )
-    poison_queue = QueueClient.from_connection_string(
+    return AzureQueue(client)
+
+
+def create_azure_poison_queue():
+    client = QueueClient.from_connection_string(
         AZURE_QUEUE_CONNECTION_STRING,
         queue_name=AZURE_POISON_QUEUE_NAME,
     )
-    try:
-        poison_queue.create_queue()
-    except ResourceExistsError:
-        pass
-    print(
-        f"Judge worker {WORKER_NAME} listening on queue {AZURE_QUEUE_NAME}",
-        flush=True,
-    )
+    return AzurePoisonQueue(client)
+
+
+def run_worker():
+    queue = create_azure_queue()
+    poison_queue = create_azure_poison_queue()
 
     while True:
         received_any = False
-        messages = queue.receive_messages(messages_per_page=1, visibility_timeout=300)
+        messages = queue.receive_messages()
         for message in messages:
             received_any = True
             handle_message(message, queue, poison_queue)

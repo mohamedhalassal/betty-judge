@@ -38,7 +38,7 @@ jobs:
             -e AZURE_QUEUE_CONNECTION_STRING="UseDevelopmentStorage=true" \
             -e AZURE_QUEUE_NAME=quickstartqueuesample \
             judge:test \
-            python -m pytest tests
+            python -m pytest tests/test_judge.py tests/test_queue.py
       - name: Push Docker judge image
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/judge:latest

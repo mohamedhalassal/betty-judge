@@ -1,0 +1,18 @@
+[project]
+name = "betty-judge"
+version = "0.1.0"
+description = "Judge worker for Betty Judge"
+requires-python = ">=3.13"
+dependencies = [
+    "azure-identity",
+    "azure-storage-queue",
+    "psycopg2-binary",
+    "python-dotenv",
+    "python-jose",
+    "sqlmodel",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]

@@ -65,10 +65,11 @@ def update_failed_submission_in_database(message):
             flush=True,
         )
     
-def handle_message(message, queue: Queue, poison_queue: PoisonQueue,get_session_func=get_session):
+def handle_message(message, queue: Queue, poison_queue: PoisonQueue,get_session_func=get_session
+,judge_submission_func=judge_submission,update_failed_submission_in_database_func=update_failed_submission_in_database):
     dequeue_count = getattr(message, "dequeue_count", 1) or 1
     if dequeue_count > MAX_QUEUE_DEQUEUE_COUNT:
-        update_failed_submission_in_database(message)
+        update_failed_submission_in_database_func(message)
         push_submission_to_poison_queue(message.content, dequeue_count, poison_queue)
         queue.delete_message(message)
         return
@@ -79,7 +80,7 @@ def handle_message(message, queue: Queue, poison_queue: PoisonQueue,get_session_
             flush=True,
         )
         with get_session_func() as session:
-            judge_submission(session, submission_id)
+            judge_submission_func(session, submission_id)
             session.expire_all()
             judged_submission = session.get(Submission, submission_id)
             verdict = judged_submission.verdict if judged_submission else None

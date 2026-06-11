@@ -31,8 +31,8 @@ def test_non_int_message_is_deleted():
     queue = FakeQueue([message])
     poison_queue = FakePoisonQueue()
 
-    worker.handle_message(message, queue, poison_queue)
-
+    worker.handle_message(message, queue, poison_queue, lambda: FakeSession())
+    
     assert message in queue.deleted
     assert message not in queue.messages
     assert poison_queue.messages == []
@@ -46,10 +46,9 @@ def test_submission_id_not_in_db_stays_in_queue(monkeypatch):
     def fake_judge_submission(session, submission_id):
         raise JudgeSubmissionError(404, "Submission not found")
 
-    monkeypatch.setattr(worker, "get_session", lambda: FakeSession())
     monkeypatch.setattr(worker, "judge_submission", fake_judge_submission)
 
-    worker.handle_message(message, queue, poison_queue)
+    worker.handle_message(message, queue, poison_queue, lambda: FakeSession())
 
     assert message not in queue.deleted
     assert message in queue.messages
@@ -61,14 +60,13 @@ def test_submission_not_in_queue_is_deleted(monkeypatch):
     queue = FakeQueue([message])
     poison_queue = FakePoisonQueue()
 
-    monkeypatch.setattr(worker, "get_session", lambda: FakeSession())
     monkeypatch.setattr(
         worker,
         "judge_submission",
         lambda session, submission_id: "Submission verdict is not in queue",
     )
 
-    worker.handle_message(message, queue, poison_queue)
+    worker.handle_message(message, queue, poison_queue, lambda: FakeSession())
 
     assert message in queue.deleted
     assert message not in queue.messages
@@ -82,7 +80,7 @@ def test_message_over_retry_limit_goes_to_poison_queue(monkeypatch):
 
     monkeypatch.setattr(worker, "update_failed_submission_in_database", lambda message: None)
 
-    worker.handle_message(message, queue, poison_queue)
+    worker.handle_message(message, queue, poison_queue, lambda: FakeSession())
 
     assert message in queue.deleted
     assert message not in queue.messages

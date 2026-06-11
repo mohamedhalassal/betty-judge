@@ -65,7 +65,7 @@ def update_failed_submission_in_database(message):
             flush=True,
         )
     
-def handle_message(message, queue: Queue, poison_queue: PoisonQueue):
+def handle_message(message, queue: Queue, poison_queue: PoisonQueue,get_session_func=get_session):
     dequeue_count = getattr(message, "dequeue_count", 1) or 1
     if dequeue_count > MAX_QUEUE_DEQUEUE_COUNT:
         update_failed_submission_in_database(message)
@@ -78,7 +78,7 @@ def handle_message(message, queue: Queue, poison_queue: PoisonQueue):
             f"[{WORKER_NAME}] took submission {submission_id}",
             flush=True,
         )
-        with get_session() as session:
+        with get_session_func() as session:
             judge_submission(session, submission_id)
             session.expire_all()
             judged_submission = session.get(Submission, submission_id)

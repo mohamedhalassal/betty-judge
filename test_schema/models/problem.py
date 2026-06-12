@@ -14,3 +14,4 @@ class Problem(SQLModel, table=True):
     checker_code: str | None = None
     time_limit: int # in ms
     memory_limit: int # in MB
+    revision_id: int | None = None

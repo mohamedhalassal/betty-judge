@@ -3,6 +3,8 @@ from sqlmodel import Session, select, create_engine
 from backend_client import create_submission
 from models.problem import Problem
 from models.submission import Submission
+import click
+
 
 engine = create_engine(os.getenv("BACKEND_URL"))
 
@@ -29,5 +31,11 @@ def sync_submissions():
         session.commit()
 
 
+@click.command()
+def main():
+	click.echo("Syncing submissions...")
+	sync_submissions()
+	click.echo("Submissions sync finished.")
+
 if __name__ == "__main__":
-    sync_submissions()
+    main()

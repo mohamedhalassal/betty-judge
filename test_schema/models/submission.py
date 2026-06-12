@@ -32,4 +32,4 @@ class Submission(SQLModel, table=True):
     codeforces_memory_bytes: int 
     codeforces_failed_test: int | None = None
     local_failed_test: int | None = None
-
+    revision_id :int | None = None

@@ -4,12 +4,11 @@ from backend_client import create_submission
 from models.problem import Problem
 from models.submission import Submission
 import click
-
-engine = create_engine(os.getenv("DATABASE_URL"))
+from database import get_engine
 
 
 def sync_submissions():
-    with Session(engine) as session:
+    with Session(get_engine()) as session:
         statement = (
             select(Submission, Problem)
             .join(Problem, Submission.problem_id == Problem.id)

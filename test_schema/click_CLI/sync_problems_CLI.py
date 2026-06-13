@@ -6,7 +6,7 @@ from backend_client import create_problem
 import click
 
 
-engine = create_engine(os.getenv("BACKEND_URL"))
+engine = create_engine(os.getenv("DATABASE_URL"))
 
 def sync_problems():
     with Session(engine) as session:

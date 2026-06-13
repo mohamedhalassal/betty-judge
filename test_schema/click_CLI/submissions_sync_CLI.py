@@ -6,7 +6,7 @@ from models.submission import Submission
 import click
 
 
-engine = create_engine(os.getenv("BACKEND_URL"))
+engine = create_engine(os.getenv("DATABASE_URL"))
 
 def sync_submissions():
     with Session(engine) as session:
@@ -16,8 +16,10 @@ def sync_submissions():
         for submission in submissions:
             problem = session.get(Problem, submission.problem_id)
             if problem is None:
+                print(f"Problem with id {submission.problem_id} not found for submission {submission.id}")
                 continue
             if problem.revision_id is None:
+                print(f"Problem with id {problem.id} has not been synced yet for submission {submission.id}")
                 continue
             try:
                 backend_submission = create_submission(

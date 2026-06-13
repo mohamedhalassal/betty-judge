@@ -84,7 +84,7 @@ def test_get_and_create_test_cases():
             expected_output="output 1",
             is_sample=False)
 
-        create_response = client.post(f"/test_cases?problem_id={problem_id}", json=test_case.model_dump())
+        create_response = client.post(f"/test_cases/problem/{problem_id}", json=test_case.model_dump())
         assert create_response.status_code == 201
 
 
@@ -93,7 +93,7 @@ def test_get_and_create_test_cases():
             expected_output="output 2",
             is_sample=False)
 
-        create_response = client.post(f"/test_cases?problem_id={problem_id}", json=test_case.model_dump())
+        create_response = client.post(f"/test_cases/problem/{problem_id}", json=test_case.model_dump())
         assert create_response.status_code == 201
 
         response = client.get("/test_cases")

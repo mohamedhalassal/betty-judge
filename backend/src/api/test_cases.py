@@ -17,8 +17,23 @@ def read_test_cases(session: SessionDep):
     return test_cases
 
 
+@router.get("/test_cases/problem/{problem_id}", dependencies=[Depends(verify_access_token)]) #pyright: ignore
+def read_test_cases_by_problem(problem_id: int, session: SessionDep):
+    problem = session.exec(select(Problem).where(Problem.id == problem_id)).first() #pyright: ignore
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    statement = (
+        select(TestCase)
+        .where(TestCase.problem_id == problem_id)
+        .order_by(TestCase.id) #pyright: ignore
+    )
+    test_cases = session.exec(statement).all()
+    return test_cases
+
+
 # todo: add response model
-@router.post("/test_cases", status_code=201,dependencies=[Depends(verify_access_token)]) #pyright: ignore   
+@router.post("/test_cases/problem/{problem_id}", status_code=201,dependencies=[Depends(verify_access_token)]) #pyright: ignore   
 async def create_test_case(test_case: Annotated[TestCaseCreate, Body(embed=False)], session: SessionDep, problem_id: int):
      if(not session.exec(select(Problem).where(Problem.id == problem_id)).first()): #pyright: ignore
             raise HTTPException(status_code=404, detail="Problem not found")

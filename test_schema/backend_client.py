@@ -4,15 +4,29 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_URL = os.getenv("BACKEND_URL")
-TOKEN = os.getenv("BACKEND_USER_TOKEN")
 
-HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+def backend_url() -> str:
+    base_url = os.getenv("BACKEND_URL")
+    if not base_url:
+        raise RuntimeError(
+            "BACKEND_URL is not set. Pass --backend-url or set BACKEND_URL."
+        )
+    return base_url.rstrip("/")
+
+
+def auth_headers() -> dict[str, str]:
+    token = os.getenv("BACKEND_USER_TOKEN")
+    if not token:
+        raise RuntimeError(
+            "BACKEND_USER_TOKEN is not set. Pass --backend-user-token or set "
+            "BACKEND_USER_TOKEN."
+        )
+    return {"Authorization": f"Bearer {token}"}
 
 
 def create_problem(problem):
     response = requests.post(
-        f"{BASE_URL}/problems",
+        f"{backend_url()}/problems",
         json={
             "name": problem.name,
             "statement": problem.statement,
@@ -21,7 +35,7 @@ def create_problem(problem):
             "time_limit": problem.time_limit,
             "memory_limit": problem.memory_limit,
         },
-        headers=HEADERS,
+        headers=auth_headers(),
         timeout=30,
     )
 
@@ -32,12 +46,24 @@ def create_problem(problem):
 
 def create_submission(problem_id: int, source_code: str):
     response = requests.post(
-        f"{BASE_URL}/submit",
+        f"{backend_url()}/submit",
         json={
             "problem_id": problem_id,
             "source_code": source_code,
         },
-        headers=HEADERS,
+        headers=auth_headers(),
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    return response.json()
+
+
+def get_submission(submission_id: int):
+    response = requests.get(
+        f"{backend_url()}/my-submissions/{submission_id}",
+        headers=auth_headers(),
         timeout=30,
     )
 

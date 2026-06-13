@@ -33,7 +33,7 @@ def create_problem(problem: Problem, test_cases: list[TestCase]):
     problem_id = response.json()["id"]
     for test_case in test_cases:
         response = requests.post(
-            f"{BASE_URL}/test_cases?problem_id={problem_id}",
+            f"{BASE_URL}/test_cases/problem/{problem_id}",
             json={
                 "input_data": test_case.input_data,
                 "expected_output": test_case.expected_output,

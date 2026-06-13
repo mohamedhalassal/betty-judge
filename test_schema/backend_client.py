@@ -1,5 +1,8 @@
 import os
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_URL = os.getenv("BACKEND_URL")
 TOKEN = os.getenv("BACKEND_USER_TOKEN")

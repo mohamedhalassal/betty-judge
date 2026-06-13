@@ -16,4 +16,5 @@ class SubmissionResponse(BaseModel):
     problem_id: int
     verdict: SubmissionStatus | None
     execution_time: int | None
+    execution_memory: int | None
     submitted_at: datetime

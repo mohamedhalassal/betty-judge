@@ -12,6 +12,8 @@ export interface Problem {
   created_by?: number;
   solution?: string | null;
   checker_code?: string | null;
+  time_limit: number;
+  memory_limit: number;
 }
 
 export interface ProblemCreate {
@@ -19,6 +21,8 @@ export interface ProblemCreate {
   statement: string;
   solution?: string | null;
   checker_code?: string | null;
+  time_limit: number;
+  memory_limit: number;
 }
 
 export type SubmissionStatus = "in_queue" | "accepted" | "wrong_answer" | "time_limit_exceeded";

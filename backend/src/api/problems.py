@@ -70,6 +70,8 @@ def update_problem(problem_id: int, problem: Annotated[ProblemCreate, Body(embed
     problem_db.statement = problem.statement
     problem_db.solution = problem.solution
     problem_db.checker_code = problem.checker_code
+    problem_db.time_limit = problem.time_limit
+    problem_db.memory_limit = problem.memory_limit
     session.add(problem_db) #pyright: ignore
     session.commit() #pyright: ignore
     session.refresh(problem_db) #pyright: ignore

@@ -23,11 +23,11 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Betty Judge — Competitive Programming Platform",
+    default: "Betty Judge — Adventure Judge Platform",
     template: "%s | Betty Judge",
   },
   description:
-    "A modern competitive programming platform for practicing algorithmic challenges, submitting solutions, and improving your coding skills.",
+    "A modern Adventure Judge Platform for practicing algorithmic challenges, submitting solutions, and improving your coding skills.",
   keywords: [
     "competitive programming",
     "online judge",

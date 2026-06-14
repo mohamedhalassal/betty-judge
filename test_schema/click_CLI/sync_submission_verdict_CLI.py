@@ -24,7 +24,7 @@ def sync_submissions():
         for submission in results:
             try:
                 response = requests.get(
-                    f"{BASE_URL}/my-submissions/{submission.id}",
+                    f"{BASE_URL}/my-submissions/{submission.revision_id}",
                     headers=HEADERS,
                     timeout=30,
                 )
@@ -34,7 +34,7 @@ def sync_submissions():
                     print(f"Submission {submission.id} is still in queue, retring.")
                     time.sleep(5)
                     backend_submission = requests.get(
-                        f"{BASE_URL}/my-submissions/{submission.id}",
+                        f"{BASE_URL}/my-submissions/{submission.revision_id}",
                         headers=HEADERS,
                         timeout=30,
                     )

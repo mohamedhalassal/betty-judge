@@ -95,11 +95,12 @@ export default function LandingPage() {
 
             {/* Right — Code Preview */}
             <motion.div
-              className="flex-1 w-full max-w-lg"
+              className="flex-1 w-full max-w-lg flex flex-col items-center gap-6"
               initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
+              <Image src="/betty-icon.png" alt="Betty Judge" width={280} height={280} className="rounded-full shadow-2xl shadow-primary/20" />
               <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-2xl shadow-black/20">
                 {/* Terminal Header */}
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card-elevated">

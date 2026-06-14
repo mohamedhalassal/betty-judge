@@ -25,7 +25,7 @@ import { useEditorStore } from "@/lib/store/editor-store";
 import { useProblem } from "@/lib/hooks/use-problems";
 import { useSubmitCode, useMySubmissions } from "@/lib/hooks/use-submissions";
 import { useTestCases, useCreateTestCase, useDeleteTestCase } from "@/lib/hooks/use-test-cases";
-import { cn, formatExecutionTime } from "@/lib/utils";
+import { cn, formatExecutionTime, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
 
 interface PageProps {
@@ -248,8 +248,7 @@ export default function ProblemDetailPage({ params }: PageProps) {
                             showFull
                           />
                           <div className="mt-2 text-xs text-foreground-muted">
-                            Submitted at{" "}
-                            {new Date(sub.submitted_at).toLocaleString()}
+                            Submitted {formatDateTime(sub.submitted_at)}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2 text-sm text-foreground-muted">

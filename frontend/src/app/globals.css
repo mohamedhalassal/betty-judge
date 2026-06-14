@@ -2,20 +2,20 @@
 
 /* ===== ADVENTURE TIME DESIGN TOKENS (dark) ===== */
 :root {
-  --background: #1a1410;
-  --background-secondary: #161210;
+  --background: #0a0a0c;
+  --background-secondary: #0e0e12;
   --foreground: #f5ede0;
   --foreground-muted: #a09080;
   --foreground-subtle: #807060;
 
-  --card: #221c18;
-  --card-hover: #2a221e;
-  --card-elevated: #322a24;
+  --card: #141418;
+  --card-hover: #1a1a20;
+  --card-elevated: #1e1e26;
   --card-foreground: #f5ede0;
 
-  --border: #3a3028;
-  --border-hover: #4a3c30;
-  --border-subtle: #2a2420;
+  --border: #20202a;
+  --border-hover: #2a2a36;
+  --border-subtle: #181820;
 
   --primary: #5bb5d4;
   --primary-hover: #7ac8e2;
@@ -38,9 +38,9 @@
   --ring: #5bb5d4;
   --radius: 1rem;
 
-  --sidebar: #161210;
-  --input: #28201c;
-  --input-border: #3a3028;
+  --sidebar: #0e0e12;
+  --input: #18181e;
+  --input-border: #20202a;
 }
 
 /* ===== TAILWIND THEME INLINE ===== */
@@ -197,14 +197,14 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ===== UTILITY CLASSES ===== */
 .glass {
-  background: rgba(26, 20, 16, 0.7);
+  background: rgba(10, 10, 12, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 248, 240, 0.06);
 }
 
 .glass-strong {
-  background: rgba(26, 20, 16, 0.85);
+  background: rgba(10, 10, 12, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 248, 240, 0.08);

@@ -9,9 +9,13 @@ import {
   Minimize2,
   Clock,
   ChevronRight,
+  Plus,
+  Trash2,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { VerdictBadge } from "@/components/submissions/verdict-badge";
 import { ProblemDetailSkeleton } from "@/components/shared/loading-skeleton";
@@ -19,6 +23,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { useEditorStore } from "@/lib/store/editor-store";
 import { useProblem } from "@/lib/hooks/use-problems";
 import { useSubmitCode, useMySubmissions } from "@/lib/hooks/use-submissions";
+import { useTestCases, useCreateTestCase, useDeleteTestCase } from "@/lib/hooks/use-test-cases";
 import { cn, formatExecutionTime } from "@/lib/utils";
 import Link from "next/link";
 
@@ -29,19 +34,39 @@ interface PageProps {
 export default function ProblemDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const problemId = parseInt(id, 10);
-  const [activeTab, setActiveTab] = useState<"description" | "submissions">(
+  const [activeTab, setActiveTab] = useState<"description" | "submissions" | "test-cases">(
     "description",
   );
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [newTestCase, setNewTestCase] = useState({ input_data: "", expected_output: "", is_sample: false });
   const { getCode, resetCode, language } = useEditorStore();
 
   const { data: problem, isLoading, isError, refetch } = useProblem(problemId);
   const submitMutation = useSubmitCode();
+  const { data: testCases, isLoading: tcLoading } = useTestCases(problemId);
+  const createTcMutation = useCreateTestCase(problemId);
+  const deleteTcMutation = useDeleteTestCase(problemId);
 
   const { data: submissions } = useMySubmissions();
   const problemSubmissions = submissions?.filter(
     (s) => s.problem_id === problemId,
   );
+
+  const handleAddTestCase = () => {
+    if (!newTestCase.input_data.trim() || !newTestCase.expected_output.trim()) return;
+    createTcMutation.mutate(
+      {
+        input_data: newTestCase.input_data,
+        expected_output: newTestCase.expected_output,
+        is_sample: newTestCase.is_sample,
+      },
+      {
+        onSuccess: () => {
+          setNewTestCase({ input_data: "", expected_output: "", is_sample: false });
+        },
+      },
+    );
+  };
 
   const handleSubmit = () => {
     const currentCode = getCode(id);
@@ -89,7 +114,7 @@ export default function ProblemDetailPage({ params }: PageProps) {
         )}
       >
         <div className="flex items-center gap-1 px-4 py-2 border-b lg:border-b-0 lg:border-r border-border">
-          {(["description", "submissions"] as const).map((tab) => (
+          {(["description", "submissions", "test-cases"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -242,6 +267,115 @@ export default function ProblemDetailPage({ params }: PageProps) {
                   You have no submissions for this problem yet.
                 </p>
               )}
+            </motion.div>
+          )}
+
+          {activeTab === "test-cases" && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Test Cases</h2>
+              </div>
+
+              {tcLoading ? (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-20 rounded-lg bg-card-elevated animate-pulse" />
+                  ))}
+                </div>
+              ) : testCases && testCases.length > 0 ? (
+                <div className="space-y-3 mb-6">
+                  {testCases.map((tc) => (
+                    <Card key={tc.id} className="p-4 bg-card-elevated border-border">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={tc.is_sample ? "info" : "outline"} className="text-[10px]">
+                              {tc.is_sample ? "Sample" : `#${tc.id}`}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-[10px] text-foreground-subtle uppercase font-medium mb-1">Input</p>
+                              <pre className="text-xs bg-card p-2 rounded border border-border overflow-x-auto max-h-20">{tc.input_data}</pre>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-foreground-subtle uppercase font-medium mb-1">Expected</p>
+                              <pre className="text-xs bg-card p-2 rounded border border-border overflow-x-auto max-h-20">{tc.expected_output}</pre>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          onClick={() => deleteTcMutation.mutate(tc.id)}
+                          className="shrink-0 text-destructive hover:bg-destructive-muted"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-foreground-muted mb-6">
+                  No test cases yet. Add one below.
+                </p>
+              )}
+
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Test Case
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-foreground-subtle mb-1 block">Input Data</label>
+                    <textarea
+                      placeholder="2&#10;1 2&#10;3 4"
+                      value={newTestCase.input_data}
+                      onChange={(e) => setNewTestCase((p) => ({ ...p, input_data: e.target.value }))}
+                      rows={3}
+                      className="flex w-full rounded-lg border border-input-border bg-input px-3 py-2 text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-colors font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-foreground-subtle mb-1 block">Expected Output</label>
+                    <textarea
+                      placeholder="3&#10;7"
+                      value={newTestCase.expected_output}
+                      onChange={(e) => setNewTestCase((p) => ({ ...p, expected_output: e.target.value }))}
+                      rows={3}
+                      className="flex w-full rounded-lg border border-input-border bg-input px-3 py-2 text-xs text-foreground placeholder:text-foreground-subtle focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-colors font-mono"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newTestCase.is_sample}
+                      onChange={(e) => setNewTestCase((p) => ({ ...p, is_sample: e.target.checked }))}
+                      className="rounded border-input-border"
+                    />
+                    <span className="text-xs text-foreground-muted">Sample case (shown to users)</span>
+                  </label>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleAddTestCase}
+                    disabled={createTcMutation.isPending || !newTestCase.input_data.trim() || !newTestCase.expected_output.trim()}
+                  >
+                    {createTcMutation.isPending ? (
+                      <span className="h-3.5 w-3.5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5" />
+                    )}
+                    Add
+                  </Button>
+                </div>
+              </div>
             </motion.div>
           )}
         </div>

@@ -1,0 +1,8 @@
+secrets
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+crash.*.log
+*.tfvars
+*.tfplan

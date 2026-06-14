@@ -14,12 +14,15 @@ router = APIRouter()
 
 @router.get("/problems",dependencies=[Depends(verify_access_token)]) #pyright: ignore
 def read_problems(session: SessionDep, #pyright: ignore,
- search: str | None = None):
+ search: str | None = None,
+ page: int = 1,
+ size: int = 20):
+    offset = (page - 1) * size
     statement = select(Problem).order_by(Problem.id)#pyright:ignore
     if search and search.strip():
         statement = statement.where(Problem.name.ilike(f"%{search}%"))#pyright:ignore
 
-    problems = session.exec(statement).all()
+    problems = session.exec(statement.offset(offset).limit(size)).all()
     return problems
 
 

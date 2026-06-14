@@ -2,6 +2,9 @@ import os
 import requests
 from dotenv import load_dotenv
 
+from models.problem import Problem
+from models.test_case import TestCase
+
 load_dotenv()
 
 
@@ -24,7 +27,7 @@ def auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def create_problem(problem):
+def create_problem(problem: Problem, test_cases: list[TestCase]):
     response = requests.post(
         f"{backend_url()}/problems",
         json={
@@ -39,9 +42,23 @@ def create_problem(problem):
         timeout=30,
     )
 
-    response.raise_for_status()
 
-    return response.json()
+    response.raise_for_status()
+    problem_id = response.json()["id"]
+    for test_case in test_cases:
+        response = requests.post(
+            f"{BASE_URL}/test_cases/problem/{problem_id}",
+            json={
+                "input_data": test_case.input_data,
+                "expected_output": test_case.expected_output,
+                "is_sample": test_case.is_sample,
+            },
+            headers=HEADERS,
+            timeout=30,
+        )
+        response.raise_for_status()
+
+    return problem_id
 
 
 def create_submission(problem_id: int, source_code: str):

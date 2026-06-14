@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Fredoka, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+
+const fredoka = Fredoka({
+  subsets: ["latin"],
+  variable: "--font-fredoka",
+  display: "swap",
+});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -17,11 +23,11 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Betty Judge — Competitive Programming Platform",
+    default: "Betty Judge — Adventure Judge Platform",
     template: "%s | Betty Judge",
   },
   description:
-    "A modern competitive programming platform for practicing algorithmic challenges, submitting solutions, and improving your coding skills.",
+    "A modern Adventure Judge Platform for practicing algorithmic challenges, submitting solutions, and improving your coding skills.",
   keywords: [
     "competitive programming",
     "online judge",
@@ -37,9 +43,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${fredoka.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

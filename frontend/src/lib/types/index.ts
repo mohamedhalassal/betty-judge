@@ -12,20 +12,29 @@ export interface Problem {
   created_by?: number;
   solution?: string | null;
   checker_code?: string | null;
-  time_limit: number;
-  memory_limit: number;
+  time_limit?: number;
+  memory_limit?: number;
 }
 
 export interface ProblemCreate {
   name: string;
   statement: string;
-  solution?: string | null;
-  checker_code?: string | null;
   time_limit: number;
   memory_limit: number;
+  solution?: string | null;
+  checker_code?: string | null;
 }
 
-export type SubmissionStatus = "in_queue" | "accepted" | "wrong_answer" | "time_limit_exceeded";
+export type SubmissionStatus =
+  | "in_queue"
+  | "accepted"
+  | "wrong_answer"
+  | "time_limit_exceeded"
+  | "runtime_error"
+  | "compile_error"
+  | "memory_limit_exceeded"
+  | "idleness_limit_exceeded"
+  | "failed";
 
 export interface SubmissionCreate {
   problem_id: number;
@@ -39,6 +48,7 @@ export interface SubmissionResponse {
   problem_id: number;
   verdict: SubmissionStatus | null;
   execution_time: number | null;
+  execution_memory: number | null;
   submitted_at: string;
 }
 

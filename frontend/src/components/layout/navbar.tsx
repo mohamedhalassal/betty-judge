@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,10 +12,9 @@ import {
   LogOut,
   User,
   ChevronDown,
-  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mainNav } from "@/config/nav";
+import { mainNav, mainNavAuth } from "@/config/nav";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -38,9 +38,7 @@ export function Navbar() {
           href="/"
           className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/20">
-            <Zap className="h-5 w-5 text-white" />
-          </div>
+          <Image src="/betty-icon.png" alt="Betty Judge" width={36} height={36} className="rounded-full" />
           <span className="text-lg font-bold tracking-tight">
             Betty<span className="text-primary">Judge</span>
           </span>
@@ -48,7 +46,7 @@ export function Navbar() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-1">
-          {mainNav.map((item) => {
+          {[...mainNav, ...(mounted && isAuthenticated ? mainNavAuth : [])].map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
@@ -156,7 +154,7 @@ export function Navbar() {
             className="md:hidden border-t border-border overflow-hidden"
           >
             <div className="px-4 py-4 space-y-1">
-              {mainNav.map((item) => {
+              {[...mainNav, ...(mounted && isAuthenticated ? mainNavAuth : [])].map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link

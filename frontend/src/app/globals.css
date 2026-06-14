@@ -1,46 +1,46 @@
 @import "tailwindcss";
 
-/* ===== DESIGN TOKENS ===== */
+/* ===== ADVENTURE TIME DESIGN TOKENS ===== */
 :root {
-  --background: #0a0a0f;
-  --background-secondary: #0e0e16;
-  --foreground: #fafafa;
-  --foreground-muted: #71717a;
-  --foreground-subtle: #52525b;
+  --background: #faf0e6;
+  --background-secondary: #f0e4d0;
+  --foreground: #2c1810;
+  --foreground-muted: #8b7355;
+  --foreground-subtle: #a08868;
 
-  --card: #12121a;
-  --card-hover: #161622;
-  --card-elevated: #1a1a2e;
-  --card-foreground: #fafafa;
+  --card: #fff8f0;
+  --card-hover: #fff0e0;
+  --card-elevated: #ffe4cc;
+  --card-foreground: #2c1810;
 
-  --border: #1e1e2e;
-  --border-hover: #2a2a3e;
-  --border-subtle: #16162a;
+  --border: #d4a574;
+  --border-hover: #c49464;
+  --border-subtle: #e8c9a8;
 
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
+  --primary: #fe66ca;
+  --primary-hover: #ff88d6;
   --primary-foreground: #ffffff;
-  --primary-muted: rgba(99, 102, 241, 0.15);
+  --primary-muted: rgba(254, 102, 202, 0.15);
 
-  --accent: #22d3ee;
-  --accent-hover: #67e8f9;
-  --accent-muted: rgba(34, 211, 238, 0.15);
+  --accent: #029ac3;
+  --accent-hover: #03b8e8;
+  --accent-muted: rgba(2, 154, 195, 0.15);
 
-  --success: #10b981;
-  --success-muted: rgba(16, 185, 129, 0.15);
-  --destructive: #ef4444;
-  --destructive-muted: rgba(239, 68, 68, 0.15);
-  --warning: #f59e0b;
-  --warning-muted: rgba(245, 158, 11, 0.15);
-  --info: #3b82f6;
-  --info-muted: rgba(59, 130, 246, 0.15);
+  --success: #59a694;
+  --success-muted: rgba(89, 166, 148, 0.15);
+  --destructive: #e74c3c;
+  --destructive-muted: rgba(231, 76, 60, 0.15);
+  --warning: #ffba1e;
+  --warning-muted: rgba(255, 186, 30, 0.15);
+  --info: #cd93f9;
+  --info-muted: rgba(205, 147, 249, 0.15);
 
-  --ring: #6366f1;
-  --radius: 0.625rem;
+  --ring: #fe66ca;
+  --radius: 0.75rem;
 
-  --sidebar: #0e0e16;
-  --input: #1a1a2e;
-  --input-border: #2a2a3e;
+  --sidebar: #f0e4d0;
+  --input: #fff8f0;
+  --input-border: #d4a574;
 }
 
 /* ===== TAILWIND THEME INLINE ===== */
@@ -121,8 +121,8 @@
     to { opacity: 1; transform: translateX(0); }
   }
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
-    50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
+    0%, 100% { box-shadow: 0 0 5px rgba(254, 102, 202, 0.3); }
+    50% { box-shadow: 0 0 20px rgba(254, 102, 202, 0.6); }
   }
   @keyframes shimmer {
     0% { background-position: -200% 0; }
@@ -172,21 +172,21 @@ body {
 
 /* ===== UTILITY CLASSES ===== */
 .glass {
-  background: rgba(18, 18, 26, 0.7);
+  background: rgba(255, 248, 240, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(212, 165, 116, 0.3);
 }
 
 .glass-strong {
-  background: rgba(18, 18, 26, 0.85);
+  background: rgba(255, 248, 240, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(212, 165, 116, 0.4);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--warning) 50%, var(--accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -211,13 +211,13 @@ body {
 }
 
 .glow-primary {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3),
-              0 0 60px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 20px rgba(254, 102, 202, 0.3),
+              0 0 60px rgba(254, 102, 202, 0.1);
 }
 
 .glow-accent {
-  box-shadow: 0 0 20px rgba(34, 211, 238, 0.3),
-              0 0 60px rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 20px rgba(2, 154, 195, 0.3),
+              0 0 60px rgba(2, 154, 195, 0.1);
 }
 
 .shimmer-bg {
@@ -234,8 +234,8 @@ body {
 /* Grid pattern overlay */
 .grid-pattern {
   background-image:
-    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(254, 102, 202, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 154, 195, 0.06) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
@@ -268,6 +268,6 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(99, 102, 241, 0.3);
+  background: rgba(254, 102, 202, 0.3);
   color: var(--foreground);
 }

@@ -2,9 +2,9 @@ import apiClient from "./client";
 import type { Problem, ProblemCreate } from "@/lib/types";
 
 export const problemsApi = {
-  getAll: async (search?: string) => {
-    const params = search ? { search } : {};
-    const res = await apiClient.get<Problem[]>("/problems", { params });
+  getAll: async (params?: { search?: string; page?: number; size?: number }) => {
+    const clean = params ? Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined)) : {};
+    const res = await apiClient.get<Problem[]>("/problems", { params: clean });
     return res.data;
   },
 

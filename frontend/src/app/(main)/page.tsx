@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Zap,
@@ -34,71 +35,74 @@ export default function LandingPage() {
         {/* Background Effects */}
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
-          <div className="flex flex-col lg:flex-row items-center gap-16">
-            {/* Left Content */}
-            <motion.div
-              className="flex-1 text-center lg:text-left"
-              initial="initial"
-              animate="animate"
-              variants={staggerContainer}
-            >
+          <div className="flex flex-col items-center gap-8">
+            <Image src="/betty-icon.png" alt="Betty Judge" width={400} height={400} className="rounded-full shadow-2xl shadow-primary/20" />
+            <div className="flex flex-col lg:flex-row items-center gap-16 w-full">
+              {/* Left Content */}
               <motion.div
-                variants={fadeInUp}
-                transition={{ duration: 0.5 }}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium text-foreground-muted mb-6"
+                className="flex-1 text-center lg:text-left"
+                initial="initial"
+                animate="animate"
+                variants={staggerContainer}
               >
-                <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
-                Adventure Judge Platform
+                <motion.div
+                  variants={fadeInUp}
+                  transition={{ duration: 0.5 }}
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium text-foreground-muted mb-6"
+                >
+                  <Image src="/betty-icon.png" alt="Betty Judge" width={16} height={16} className="rounded-full" />
+                  <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  Adventure Judge Platform
+                </motion.div>
+
+                <motion.h1
+                  variants={fadeInUp}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6"
+                >
+                  Master{" "}
+                  <span className="gradient-text">Competitive</span>
+                  <br />
+                  Programming
+                </motion.h1>
+
+                <motion.p
+                  variants={fadeInUp}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="text-lg text-foreground-muted max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed"
+                >
+                  Solve algorithmic challenges, submit solutions in multiple languages,
+                  and compete with programmers worldwide. Built for speed and precision.
+                </motion.p>
+
+                <motion.div
+                  variants={fadeInUp}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start"
+                >
+                  <Button asChild size="lg" variant="gradient">
+                    <Link href="/problems">
+                      Start Solving
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <Link href="/leaderboard">
+                      <Trophy className="h-4 w-4" />
+                      View Leaderboard
+                    </Link>
+                  </Button>
+                </motion.div>
               </motion.div>
 
-              <motion.h1
-                variants={fadeInUp}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6"
-              >
-                Master{" "}
-                <span className="gradient-text">Competitive</span>
-                <br />
-                Programming
-              </motion.h1>
-
-              <motion.p
-                variants={fadeInUp}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="text-lg text-foreground-muted max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed"
-              >
-                Solve algorithmic challenges, submit solutions in multiple languages,
-                and compete with programmers worldwide. Built for speed and precision.
-              </motion.p>
-
+              {/* Right — Code Preview */}
               <motion.div
-                variants={fadeInUp}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start"
+                className="flex-1 w-full max-w-lg"
+                initial={{ opacity: 0, x: 40 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
               >
-                <Button asChild size="lg" variant="gradient">
-                  <Link href="/problems">
-                    Start Solving
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/leaderboard">
-                    <Trophy className="h-4 w-4" />
-                    View Leaderboard
-                  </Link>
-                </Button>
-              </motion.div>
-            </motion.div>
-
-            {/* Right — Code Preview */}
-            <motion.div
-              className="flex-1 w-full max-w-lg"
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-2xl shadow-black/20">
+                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-2xl shadow-black/20">
                 {/* Terminal Header */}
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card-elevated">
                   <div className="flex gap-1.5">
@@ -166,6 +170,7 @@ export default function LandingPage() {
                 </div>
               </div>
             </motion.div>
+          </div>
           </div>
         </div>
       </section>

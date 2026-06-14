@@ -14,7 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mainNav } from "@/config/nav";
+import { mainNav, mainNavAuth } from "@/config/nav";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +48,7 @@ export function Navbar() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-1">
-          {mainNav.map((item) => {
+          {[...mainNav, ...(mounted && isAuthenticated ? mainNavAuth : [])].map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
@@ -156,7 +156,7 @@ export function Navbar() {
             className="md:hidden border-t border-border overflow-hidden"
           >
             <div className="px-4 py-4 space-y-1">
-              {mainNav.map((item) => {
+              {[...mainNav, ...(mounted && isAuthenticated ? mainNavAuth : [])].map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link

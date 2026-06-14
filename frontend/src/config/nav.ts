@@ -3,7 +3,7 @@ import {
   Trophy,
   History,
   User,
-  LayoutDashboard,
+  Plus,
 } from "lucide-react";
 
 export interface NavItem {
@@ -32,6 +32,15 @@ export const mainNav: NavItem[] = [
   },
 ];
 
+export const mainNavAuth: NavItem[] = [
+  {
+    title: "New Problem",
+    href: "/problems/create",
+    icon: Plus,
+    requiresAuth: true,
+  },
+];
+
 export const userNav: NavItem[] = [
   {
     title: "Profile",
@@ -40,9 +49,9 @@ export const userNav: NavItem[] = [
     requiresAuth: true,
   },
   {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
+    title: "New Problem",
+    href: "/problems/create",
+    icon: Plus,
     requiresAuth: true,
   },
 ];

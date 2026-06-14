@@ -35,6 +35,11 @@ export function getVerdictColor(status: string): string {
     accepted: "text-success",
     wrong_answer: "text-destructive",
     time_limit_exceeded: "text-warning",
+    runtime_error: "text-destructive",
+    compile_error: "text-destructive",
+    memory_limit_exceeded: "text-warning",
+    idleness_limit_exceeded: "text-warning",
+    failed: "text-destructive",
     in_queue: "text-foreground-muted",
   };
   return colors[status] || "text-foreground-muted";
@@ -45,6 +50,11 @@ export function getVerdictBgColor(status: string): string {
     accepted: "bg-success-muted",
     wrong_answer: "bg-destructive-muted",
     time_limit_exceeded: "bg-warning-muted",
+    runtime_error: "bg-destructive-muted",
+    compile_error: "bg-destructive-muted",
+    memory_limit_exceeded: "bg-warning-muted",
+    idleness_limit_exceeded: "bg-warning-muted",
+    failed: "bg-destructive-muted",
     in_queue: "bg-card-elevated",
   };
   return colors[status] || "bg-card-elevated";
@@ -55,6 +65,11 @@ export function getVerdictShort(status: string): string {
     accepted: "AC",
     wrong_answer: "WA",
     time_limit_exceeded: "TLE",
+    runtime_error: "RTE",
+    compile_error: "CE",
+    memory_limit_exceeded: "MLE",
+    idleness_limit_exceeded: "ILE",
+    failed: "FAIL",
     in_queue: "...",
   };
   return shorts[status] || status;

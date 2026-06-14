@@ -22,12 +22,22 @@ export function VerdictBadge({ status, showFull = false, className }: VerdictBad
     "accepted": "success",
     "wrong_answer": "destructive",
     "time_limit_exceeded": "warning",
+    "runtime_error": "destructive",
+    "compile_error": "destructive",
+    "memory_limit_exceeded": "warning",
+    "idleness_limit_exceeded": "warning",
+    "failed": "destructive",
   };
 
   const shortMap: Record<string, string> = {
     "accepted": "AC",
     "wrong_answer": "WA",
     "time_limit_exceeded": "TLE",
+    "runtime_error": "RTE",
+    "compile_error": "CE",
+    "memory_limit_exceeded": "MLE",
+    "idleness_limit_exceeded": "ILE",
+    "failed": "FAIL",
     "in_queue": "Q",
   };
 

@@ -17,3 +17,5 @@ class ProblemResponse(BaseModel):
     name: str
     statement: str
     created_at: datetime
+    time_limit: int
+    memory_limit: int

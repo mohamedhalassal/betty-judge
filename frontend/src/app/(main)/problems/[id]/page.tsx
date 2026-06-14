@@ -9,6 +9,7 @@ import {
   Minimize2,
   Clock,
   ChevronRight,
+  FlaskConical,
   Plus,
   Trash2,
   Check,
@@ -128,6 +129,13 @@ export default function ProblemDetailPage({ params }: PageProps) {
               {tab}
             </button>
           ))}
+          <Link
+            href={`/problems/${id}/test-cases`}
+            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors text-foreground-muted hover:text-foreground hover:bg-card flex items-center gap-1.5"
+          >
+            <FlaskConical className="h-3.5 w-3.5" />
+            Test Cases
+          </Link>
         </div>
 
         <div className="flex items-center justify-between px-4 py-2">

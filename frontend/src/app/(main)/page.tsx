@@ -32,9 +32,6 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden">
         {/* Background Effects */}
-        <div className="absolute inset-0 grid-pattern opacity-50" />
-        <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[120px]" />
-        <div className="absolute bottom-20 right-1/4 w-[400px] h-[400px] bg-accent/8 rounded-full blur-[120px]" />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
           <div className="flex flex-col lg:flex-row items-center gap-16">
@@ -50,8 +47,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.5 }}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium text-foreground-muted mb-6"
               >
-                <span className="inline-block h-2 w-2 rounded-full bg-success animate-pulse" />
-                Online Judge Platform
+                <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
+                Adventure Judge Platform
               </motion.div>
 
               <motion.h1
@@ -105,11 +102,11 @@ export default function LandingPage() {
                 {/* Terminal Header */}
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card-elevated">
                   <div className="flex gap-1.5">
-                    <div className="h-3 w-3 rounded-full bg-destructive/60" />
-                    <div className="h-3 w-3 rounded-full bg-warning/60" />
-                    <div className="h-3 w-3 rounded-full bg-success/60" />
+                    <div className="h-3 w-3 rounded-full bg-primary/70" />
+                    <div className="h-3 w-3 rounded-full bg-warning/70" />
+                    <div className="h-3 w-3 rounded-full bg-accent/70" />
                   </div>
-                  <span className="ml-2 text-xs text-foreground-subtle font-mono">solution.cpp</span>
+                  <span className="ml-2 text-xs text-foreground-subtle font-mono">adventure.cpp</span>
                 </div>
                 {/* Code Content */}
                 <div className="p-5 font-mono text-sm leading-7 text-foreground-muted">

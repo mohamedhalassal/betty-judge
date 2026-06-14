@@ -2,10 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { problemsApi } from "@/lib/api/problems";
 import type { ProblemCreate } from "@/lib/types";
 
-export function useProblems(search?: string) {
+export function useProblems(params?: { search?: string; page?: number; size?: number }) {
   return useQuery({
-    queryKey: ["problems", search],
-    queryFn: () => problemsApi.getAll(search),
+    queryKey: ["problems", params],
+    queryFn: () => problemsApi.getAll(params),
     staleTime: 30 * 1000,
   });
 }

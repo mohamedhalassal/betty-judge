@@ -3,18 +3,28 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Search, Circle } from "lucide-react";
+import { Search, Circle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useProblems } from "@/lib/hooks/use-problems";
 
+const PAGE_SIZE = 20;
+
 export default function ProblemsPage() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const { data: problems, isLoading, isError, refetch } = useProblems(search || undefined);
+  const { data: problems, isLoading, isError, refetch } = useProblems({
+    search: search || undefined,
+    page,
+    size: PAGE_SIZE,
+  });
+
+  const hasMore = Array.isArray(problems) && problems.length === PAGE_SIZE;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -34,7 +44,7 @@ export default function ProblemsPage() {
           <Input
             placeholder="Search problems..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-9"
           />
         </div>
@@ -94,6 +104,28 @@ export default function ProblemsPage() {
           ))
         )}
       </motion.div>
+
+      <div className="flex items-center justify-center gap-4 mt-6">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page <= 1}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        <span className="text-sm text-foreground-muted">Page {page}</span>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setPage((p) => p + 1)}
+          disabled={!hasMore}
+        >
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Zap,
@@ -47,6 +48,7 @@ export default function LandingPage() {
                 transition={{ duration: 0.5 }}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium text-foreground-muted mb-6"
               >
+                <Image src="/betty-icon.png" alt="Betty Judge" width={16} height={16} className="rounded-full" />
                 <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
                 Adventure Judge Platform
               </motion.div>

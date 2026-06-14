@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
-/* ===== ADVENTURE TIME DESIGN TOKENS ===== */
+/* ===== ADVENTURE TIME DESIGN TOKENS (dark) ===== */
 :root {
-  --background: #faf0e6;
-  --background-secondary: #f0e4d0;
-  --foreground: #2c1810;
-  --foreground-muted: #8b7355;
-  --foreground-subtle: #a08868;
+  --background: #1a1410;
+  --background-secondary: #161210;
+  --foreground: #f5ede0;
+  --foreground-muted: #a09080;
+  --foreground-subtle: #807060;
 
-  --card: #fff8f0;
-  --card-hover: #fff0e0;
-  --card-elevated: #ffe4cc;
-  --card-foreground: #2c1810;
+  --card: #221c18;
+  --card-hover: #2a221e;
+  --card-elevated: #322a24;
+  --card-foreground: #f5ede0;
 
-  --border: #d4a574;
-  --border-hover: #c49464;
-  --border-subtle: #e8c9a8;
+  --border: #3a3028;
+  --border-hover: #4a3c30;
+  --border-subtle: #2a2420;
 
   --primary: #fe66ca;
   --primary-hover: #ff88d6;
@@ -38,9 +38,9 @@
   --ring: #fe66ca;
   --radius: 1rem;
 
-  --sidebar: #f0e4d0;
-  --input: #fff8f0;
-  --input-border: #d4a574;
+  --sidebar: #161210;
+  --input: #28201c;
+  --input-border: #3a3028;
 }
 
 /* ===== TAILWIND THEME INLINE ===== */
@@ -173,7 +173,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .card-lift:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(254, 102, 202, 0.1), 0 2px 8px rgba(2, 154, 195, 0.08);
+  box-shadow: 0 8px 24px rgba(254, 102, 202, 0.15), 0 2px 8px rgba(2, 154, 195, 0.12), 0 0 40px rgba(0, 0, 0, 0.2);
 }
 
 /* ===== SCROLLBAR ===== */
@@ -197,17 +197,17 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ===== UTILITY CLASSES ===== */
 .glass {
-  background: rgba(255, 248, 240, 0.7);
+  background: rgba(26, 20, 16, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 165, 116, 0.3);
+  border: 1px solid rgba(255, 248, 240, 0.06);
 }
 
 .glass-strong {
-  background: rgba(255, 248, 240, 0.85);
+  background: rgba(26, 20, 16, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(212, 165, 116, 0.4);
+  border: 1px solid rgba(255, 248, 240, 0.08);
 }
 
 .gradient-text {
@@ -259,8 +259,8 @@ h1, h2, h3, h4, h5, h6 {
 /* Grid pattern overlay */
 .grid-pattern {
   background-image:
-    linear-gradient(rgba(254, 102, 202, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(2, 154, 195, 0.06) 1px, transparent 1px);
+    linear-gradient(rgba(254, 102, 202, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 154, 195, 0.04) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
@@ -288,9 +288,9 @@ h1, h2, h3, h4, h5, h6 {
 /* Cloud shape */
 .cloud {
   position: absolute;
-  background: rgba(255, 248, 240, 0.6);
+  background: rgba(254, 102, 202, 0.08);
   border-radius: 50%;
-  filter: blur(40px);
+  filter: blur(60px);
   pointer-events: none;
 }
 

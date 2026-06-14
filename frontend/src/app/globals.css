@@ -173,7 +173,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .card-lift:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(91, 181, 212, 0.12), 0 2px 8px rgba(239, 217, 117, 0.1), 0 0 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 24px rgba(91, 181, 212, 0.12), 0 0 40px rgba(0, 0, 0, 0.2);
 }
 
 /* ===== SCROLLBAR ===== */
@@ -241,8 +241,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .glow-accent {
-  box-shadow: 0 0 20px rgba(239, 217, 117, 0.3),
-              0 0 60px rgba(239, 217, 117, 0.1);
+  box-shadow: 0 0 20px rgba(91, 181, 212, 0.3),
+              0 0 60px rgba(91, 181, 212, 0.1);
 }
 
 .shimmer-bg {
@@ -260,7 +260,7 @@ h1, h2, h3, h4, h5, h6 {
 .grid-pattern {
   background-image:
     linear-gradient(rgba(91, 181, 212, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(239, 217, 117, 0.04) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(91, 181, 212, 0.04) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 

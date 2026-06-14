@@ -35,8 +35,9 @@ export default function LandingPage() {
         <div className="absolute inset-0 grid-pattern opacity-30" />
         <div className="absolute top-16 left-1/4 w-[450px] h-[450px] bg-primary/15 rounded-full blur-[100px]" />
         <div className="absolute top-40 left-1/3 w-[300px] h-[300px] bg-warning/10 rounded-full blur-[80px]" />
-        <div className="absolute bottom-20 right-1/4 w-[350px] h-[350px] bg-accent/12 rounded-full blur-[100px]" />
+        <div className="absolute bottom-20 right-1/4 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-40 right-1/3 w-[200px] h-[200px] bg-info/10 rounded-full blur-[70px]" />
+        <div className="absolute top-60 right-[15%] w-[180px] h-[180px] bg-success/8 rounded-full blur-[80px]" />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
           <div className="flex flex-col lg:flex-row items-center gap-16">

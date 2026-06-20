@@ -71,7 +71,7 @@ export default function ProblemDetailPage({ params }: PageProps) {
 
   const handleSubmit = () => {
     const currentCode = getCode(id);
-    if (!currentCode) return;
+    if (!currentCode || submitMutation.isPending) return;
     submitMutation.mutate(
       {
         problem_id: problemId,

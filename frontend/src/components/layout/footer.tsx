@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Zap, GitBranch } from "lucide-react";
+import Image from "next/image";
+import { GitBranch } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 export function Footer() {
@@ -8,9 +9,13 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-center justify-between py-6 gap-4">
           <div className="flex items-center gap-2 text-foreground-muted">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-primary to-accent">
-              <Zap className="h-3.5 w-3.5 text-white" />
-            </div>
+            <Image 
+              src="/icon.png" 
+              alt="Betty Judge Icon" 
+              width={24} 
+              height={24} 
+              className="rounded-md"
+            />
             <span className="text-sm">
               © {new Date().getFullYear()} Betty Judge. All rights reserved.
             </span>

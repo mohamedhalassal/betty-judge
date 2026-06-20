@@ -1,22 +1,27 @@
 import { useEffect, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
+import { toUtcDate } from "@/lib/utils";
 
-export function useLocalTime(utcDate: string | Date, pattern = "MMM d, yyyy HH:mm"): string | null {
-  const [display, setDisplay] = useState<string | null>(null);
+export function useLocalTime(utcDate: string | Date, pattern = "MMM d, yyyy HH:mm"): string {
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setDisplay(format(new Date(utcDate), pattern));
-  }, [utcDate, pattern]);
+    setMounted(true);
+  }, []);
 
-  return display;
+  if (!mounted) return "\u2014";
+
+  return format(toUtcDate(utcDate), pattern);
 }
 
-export function useLocalRelativeTime(utcDate: string | Date): string | null {
-  const [display, setDisplay] = useState<string | null>(null);
+export function useLocalRelativeTime(utcDate: string | Date): string {
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setDisplay(formatDistanceToNow(new Date(utcDate), { addSuffix: true }));
-  }, [utcDate]);
+    setMounted(true);
+  }, []);
 
-  return display;
+  if (!mounted) return "\u2014";
+
+  return formatDistanceToNow(toUtcDate(utcDate), { addSuffix: true });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Send,
@@ -69,9 +69,13 @@ export default function ProblemDetailPage({ params }: PageProps) {
     );
   };
 
+  const submittingRef = useRef(false);
+
   const handleSubmit = () => {
     const currentCode = getCode(id);
-    if (!currentCode || submitMutation.isPending) return;
+    if (!currentCode || submittingRef.current) return;
+
+    submittingRef.current = true;
     submitMutation.mutate(
       {
         problem_id: problemId,
@@ -80,6 +84,10 @@ export default function ProblemDetailPage({ params }: PageProps) {
       {
         onSuccess: () => {
           setActiveTab("submissions");
+          submittingRef.current = false;
+        },
+        onError: () => {
+          submittingRef.current = false;
         },
       },
     );

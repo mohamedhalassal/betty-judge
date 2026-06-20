@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/store/auth-store";
@@ -27,12 +28,14 @@ export function useUpdateUsername() {
       queryClient.setQueryData(["auth", "me"], user);
       toast.success("Username updated successfully");
     },
-    onError: (error: unknown) => {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to update username";
-      toast.error(message);
+    onError: (error) => {
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.detail || error.message);
+      } else if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to update username");
+      }
     },
   });
 }

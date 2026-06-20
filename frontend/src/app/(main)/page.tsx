@@ -175,41 +175,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="border-y border-border bg-card/50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-          <motion.div
-            className="grid grid-cols-2 md:grid-cols-4 gap-8"
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={staggerContainer}
-          >
-            {[
-              { label: "Problems", value: "500+", icon: Code2 },
-              { label: "Users", value: "10K+", icon: Users },
-              { label: "Submissions", value: "100K+", icon: Terminal },
-              { label: "Languages", value: "3+", icon: Globe },
-            ].map((stat) => (
-              <motion.div
-                key={stat.label}
-                variants={fadeInUp}
-                transition={{ duration: 0.4 }}
-                className="text-center"
-              >
-                <div className="flex items-center justify-center mb-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-muted">
-                    <stat.icon className="h-5 w-5 text-primary" />
-                  </div>
-                </div>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <div className="text-sm text-foreground-muted">{stat.label}</div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
       {/* Features Section */}
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

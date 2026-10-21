@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { problemsApi } from "@/lib/api/problems";
-import type { ProblemCreate } from "@/lib/types";
+import { useAuthStore } from "@/lib/store/auth-store";
+import type { Problem, ProblemCreate } from "@/lib/types";
 
 export function useProblems(params?: { search?: string; page?: number; size?: number }) {
   return useQuery({
@@ -17,6 +18,11 @@ export function useProblem(id: number) {
     enabled: !!id,
     staleTime: 60 * 1000,
   });
+}
+
+export function useIsProblemOwner(problem?: Problem | null) {
+  const userId = useAuthStore((s) => s.user?.id);
+  return problem?.created_by != null && userId != null && problem.created_by === userId;
 }
 
 export function useCreateProblem() {

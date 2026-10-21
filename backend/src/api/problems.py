@@ -55,8 +55,9 @@ def delete_problem(problem_id: int, session: SessionDep, current_user: Annotated
     problem = session.exec(select(Problem).where(Problem.id == problem_id)).first()#pyright: ignore
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
-    if problem.created_by != current_user.id:
+    if problem.created_by != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to delete this problem")
+    
     session.delete(problem) #pyright: ignore
     session.commit() #pyright: ignore
 
@@ -67,7 +68,7 @@ def update_problem(problem_id: int, problem: Annotated[ProblemCreate, Body(embed
     problem_db = session.exec(select(Problem).where(Problem.id == problem_id)).first()#pyright: ignore
     if not problem_db:
         raise HTTPException(status_code=404, detail="Problem not found")
-    if problem_db.created_by != current_user.id:
+    if problem_db.created_by != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to update this problem")
     problem_db.name = problem.name
     problem_db.statement = problem.statement

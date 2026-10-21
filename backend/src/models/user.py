@@ -8,4 +8,5 @@ class User(SQLModel, table=True):
     google_id: str = Field(unique=True)
     email: str
     username: str = Field(unique=True, max_length=16)
+    is_admin: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utc_now)

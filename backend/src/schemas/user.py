@@ -10,6 +10,7 @@ class UserResponse(UserBase):
     id: int
     username: str
     created_at: datetime
+    is_admin: bool
 
 class UpdateUsernameRequest(BaseModel):
      username: str = Field(

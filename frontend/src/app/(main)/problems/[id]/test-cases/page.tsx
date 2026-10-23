@@ -3,14 +3,14 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, Trash2, FlaskConical, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, FlaskConical, ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useProblem } from "@/lib/hooks/use-problems";
+import { useProblem, useIsProblemOwner } from "@/lib/hooks/use-problems";
 import { useTestCases, useCreateTestCase, useDeleteTestCase } from "@/lib/hooks/use-test-cases";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -25,7 +25,8 @@ export default function TestCasesPage({ params }: PageProps) {
   const router = useRouter();
 
   const { data: problem, isLoading: problemLoading, isError: problemError } = useProblem(problemId);
-  const { data: testCases, isLoading, isError, refetch } = useTestCases(problemId);
+  const isOwner = useIsProblemOwner(problem);
+  const { data: testCases, isLoading, isError, refetch } = useTestCases(problemId, { enabled: isOwner });
   const createMutation = useCreateTestCase(problemId);
   const deleteMutation = useDeleteTestCase(problemId);
 
@@ -66,6 +67,26 @@ export default function TestCasesPage({ params }: PageProps) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
         <ErrorState title="Problem not found" onRetry={() => router.push("/problems")} />
+      </div>
+    );
+  }
+
+  if (!isOwner) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <EmptyState
+          icon={<Lock className="h-8 w-8 text-foreground-subtle" />}
+          title="Not allowed"
+          description="Only the creator of this problem can manage its test cases."
+          action={
+            <Link href={`/problems/${problemId}`}>
+              <Button variant="secondary">
+                <ArrowLeft className="h-4 w-4" />
+                Back to problem
+              </Button>
+            </Link>
+          }
+        />
       </div>
     );
   }

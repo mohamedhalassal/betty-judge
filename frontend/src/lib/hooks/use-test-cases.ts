@@ -2,11 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { testCasesApi } from "@/lib/api/test-cases";
 import type { TestCaseCreate } from "@/lib/types";
 
-export function useTestCases(problemId: number) {
+export function useTestCases(problemId: number, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["test-cases", problemId],
     queryFn: () => testCasesApi.getByProblem(problemId),
-    enabled: !!problemId,
+    enabled: !!problemId && (options?.enabled ?? true),
   });
 }
 

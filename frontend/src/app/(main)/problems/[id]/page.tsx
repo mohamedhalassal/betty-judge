@@ -22,7 +22,7 @@ import { VerdictBadge } from "@/components/submissions/verdict-badge";
 import { ProblemDetailSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { useEditorStore } from "@/lib/store/editor-store";
-import { useProblem } from "@/lib/hooks/use-problems";
+import { useProblem, useIsProblemOwner } from "@/lib/hooks/use-problems";
 import { useSubmitCode, useMySubmissions } from "@/lib/hooks/use-submissions";
 import { useTestCases, useCreateTestCase, useDeleteTestCase } from "@/lib/hooks/use-test-cases";
 import { cn, formatExecutionTime } from "@/lib/utils";
@@ -43,8 +43,9 @@ export default function ProblemDetailPage({ params }: PageProps) {
   const { getCode, resetCode, language } = useEditorStore();
 
   const { data: problem, isLoading, isError, refetch } = useProblem(problemId);
+  const isOwner = useIsProblemOwner(problem);
   const submitMutation = useSubmitCode();
-  const { data: testCases, isLoading: tcLoading } = useTestCases(problemId);
+  const { data: testCases, isLoading: tcLoading } = useTestCases(problemId, { enabled: isOwner });
   const createTcMutation = useCreateTestCase(problemId);
   const deleteTcMutation = useDeleteTestCase(problemId);
 
@@ -123,7 +124,10 @@ export default function ProblemDetailPage({ params }: PageProps) {
         )}
       >
         <div className="flex items-center gap-1 px-4 py-2 border-b lg:border-b-0 lg:border-r border-border">
-          {(["description", "submissions", "test-cases"] as const).map((tab) => (
+          {(isOwner
+            ? (["description", "submissions", "test-cases"] as const)
+            : (["description", "submissions"] as const)
+          ).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -137,13 +141,15 @@ export default function ProblemDetailPage({ params }: PageProps) {
               {tab}
             </button>
           ))}
-          <Link
-            href={`/problems/${id}/test-cases`}
-            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors text-foreground-muted hover:text-foreground hover:bg-card flex items-center gap-1.5"
-          >
-            <FlaskConical className="h-3.5 w-3.5" />
-            Test Cases
-          </Link>
+          {isOwner && (
+            <Link
+              href={`/problems/${id}/test-cases`}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors text-foreground-muted hover:text-foreground hover:bg-card flex items-center gap-1.5"
+            >
+              <FlaskConical className="h-3.5 w-3.5" />
+              Test Cases
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center justify-between px-4 py-2">
@@ -286,7 +292,7 @@ export default function ProblemDetailPage({ params }: PageProps) {
             </motion.div>
           )}
 
-          {activeTab === "test-cases" && (
+          {activeTab === "test-cases" && isOwner && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
